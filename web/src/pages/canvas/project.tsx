@@ -317,11 +317,14 @@ function InfiniteCanvasPage() {
 
     const completeVideoNodeTask = useCallback(
         async (nodeId: string, config: Parameters<typeof buildGenerationConfig>[0], prompt: string, images: Parameters<typeof createVideoGenerationTask>[2], signal: AbortSignal, extra: CanvasNodeData["metadata"] = {}, videos: ReferenceVideo[] = [], audios: ReferenceAudio[] = []) => {
-            const task = await createVideoGenerationTask(config, prompt, images, { signal, videos, audios });
+            const onStage = (videoGenerationStage: NonNullable<CanvasNodeData["metadata"]>["videoGenerationStage"]) => setNodes((prev) => prev.map((item) => item.id === nodeId ? { ...item, metadata: { ...item.metadata, videoGenerationStage } } : item));
+            const task = await createVideoGenerationTask(config, prompt, images, { signal, videos, audios, onStage });
             if (task.provider !== "plugin") {
                 setNodes((prev) => prev.map((item) => (item.id === nodeId ? { ...item, metadata: { ...item.metadata, videoTaskId: task.id, videoTaskProvider: task.provider === "gemini" ? "gemini" : "openai", model: config.model } } : item)));
             }
-            const video = await storeGeneratedVideo(await waitForVideoGenerationTask(config, task, { signal }));
+            const result = await waitForVideoGenerationTask(config, task, { signal, onStage });
+            onStage("saving");
+            const video = await storeGeneratedVideo(result);
             setNodes((prev) => prev.map((item) => (item.id === nodeId ? applyGeneratedVideo(item, video, { prompt, model: config.model, ...extra }) : item)));
         },
         [],
@@ -346,7 +349,10 @@ function InfiniteCanvasPage() {
                 setRunningNodeId(node.id);
                 setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_LOADING, errorDetails: undefined } } : item)));
                 controller = startGenerationRequest(node.id, node.id, node.id);
-                const video = await storeGeneratedVideo(await waitForVideoGenerationTask(generationConfig, { id: taskId, provider: node.metadata?.videoTaskProvider === "gemini" ? "gemini" : "openai", model: generationConfig.model }, { signal: controller.signal }));
+                const onStage = (videoGenerationStage: NonNullable<CanvasNodeData["metadata"]>["videoGenerationStage"]) => setNodes((prev) => prev.map((item) => item.id === node.id ? { ...item, metadata: { ...item.metadata, videoGenerationStage } } : item));
+                const result = await waitForVideoGenerationTask(generationConfig, { id: taskId, provider: node.metadata?.videoTaskProvider === "gemini" ? "gemini" : "openai", model: generationConfig.model }, { signal: controller.signal, onStage });
+                onStage("saving");
+                const video = await storeGeneratedVideo(result);
                 setNodes((prev) =>
                     prev.map((item) =>
                         item.id === node.id
@@ -426,7 +432,7 @@ function InfiniteCanvasPage() {
         (nodeId: string) => {
             modal.confirm({
                 title: t("canvas.projectPage.stopTitle"),
-                content: t("canvas.projectPage.stopDescription"),
+                content: nodesRef.current.some((node) => node.id === nodeId && (node.type === CanvasNodeType.Video || node.metadata?.generationMode === "video")) ? t("uploadImages.stopVideoDescription") : t("canvas.projectPage.stopDescription"),
                 okText: t("canvas.projectPage.stop"),
                 cancelText: t("canvas.projectPage.continue"),
                 okButtonProps: { danger: true },
