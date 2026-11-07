@@ -57,6 +57,9 @@ export type CanvasNodeMetadata = {
     reasoningEffort?: "auto" | "low" | "medium" | "high" | "xhigh";
     size?: string;
     quality?: string;
+    imageOutputFormat?: "png" | "gif";
+    imageFrameCount?: string;
+    imageFrameDurationMs?: string;
     background?: string;
     count?: number;
     textCount?: number;

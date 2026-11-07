@@ -22,3 +22,7 @@ test("falls back to the original once the rendered size outgrows the preview", (
 test("uses the original when no preview exists", () => {
     expect(pickImageSource({ ...base, previewUrl: undefined, scale: 1, devicePixelRatio: 1 })).toBe(base.originalUrl);
 });
+
+test("GIF playback always uses the original even when a small static preview exists", () => {
+    expect(pickImageSource({ ...base, mimeType: "image/gif", scale: 0.1, devicePixelRatio: 1 })).toBe(base.originalUrl);
+});

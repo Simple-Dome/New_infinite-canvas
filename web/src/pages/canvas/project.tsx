@@ -12,7 +12,7 @@ import { defaultConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-
 import { ensureImagePreview, uploadImage } from "@/services/image-storage";
 import { uploadMediaFile, type UploadedFile } from "@/services/file-storage";
 import { nanoid } from "nanoid";
-import { getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
+import { getDataUrlByteSize, imageFileExtension, readImageMeta } from "@/lib/image-utils";
 import { imageReferenceLabel } from "@/lib/image-reference-prompt";
 import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
 import { useAssetStore } from "@/stores/use-asset-store";
@@ -62,7 +62,6 @@ import {
     hasResumableVideoTask,
     hydrateAssistantImages,
     hydrateCanvasImages,
-    imageExtension,
     isAudioFile,
     isGenerationCanceled,
     resetInterruptedGeneration,
@@ -1780,6 +1779,9 @@ function InfiniteCanvasPage() {
                 model: node.metadata?.model,
                 size: node.metadata?.size,
                 quality: node.metadata?.quality,
+                imageOutputFormat: node.metadata?.imageOutputFormat,
+                imageFrameCount: node.metadata?.imageFrameCount,
+                imageFrameDurationMs: node.metadata?.imageFrameDurationMs,
                 background: node.metadata?.background,
                 references: node.metadata?.references,
             },
@@ -1800,13 +1802,13 @@ function InfiniteCanvasPage() {
 
     const downloadNodeImage = useCallback((node: CanvasNodeData) => {
         if ((node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video && node.type !== CanvasNodeType.Audio) || !node.metadata?.content) return;
-        saveAs(node.metadata.content, `canvas-${node.type}-${node.id}.${node.type === CanvasNodeType.Video ? "mp4" : node.type === CanvasNodeType.Audio ? audioExtension(node.metadata.mimeType) : imageExtension(node.metadata.content)}`);
+        saveAs(node.metadata.content, `canvas-${node.type}-${node.id}.${node.type === CanvasNodeType.Video ? "mp4" : node.type === CanvasNodeType.Audio ? audioExtension(node.metadata.mimeType) : imageFileExtension(node.metadata.mimeType, node.metadata.content)}`);
     }, []);
 
     const downloadBatchImage = useCallback((node: CanvasNodeData, imageId: string) => {
         const image = node.metadata?.images?.find((item) => item.id === imageId);
         if (!image?.content) return;
-        saveAs(image.content, `canvas-image-${node.id}-${image.id}.${imageExtension(image.content)}`);
+        saveAs(image.content, `canvas-image-${node.id}-${image.id}.${imageFileExtension(image.mimeType, image.content)}`);
     }, []);
 
     const captureVideoNodeFrame = useCallback(
@@ -2236,6 +2238,9 @@ function InfiniteCanvasPage() {
                                           model: undefined,
                                           size: undefined,
                                           quality: undefined,
+                                          imageOutputFormat: undefined,
+                                          imageFrameCount: undefined,
+                                          imageFrameDurationMs: undefined,
                                           count: undefined,
                                           references: undefined,
                                           primaryImageId: undefined,
@@ -2780,6 +2785,9 @@ function InfiniteCanvasPage() {
                           ...effectiveConfig,
                           model: savedImageMetadata.model || effectiveConfig.imageModel || effectiveConfig.model,
                           quality: savedImageMetadata.quality || effectiveConfig.quality,
+                          imageOutputFormat: savedImageMetadata.imageOutputFormat ?? defaultConfig.imageOutputFormat,
+                          imageFrameCount: savedImageMetadata.imageFrameCount ?? defaultConfig.imageFrameCount,
+                          imageFrameDurationMs: savedImageMetadata.imageFrameDurationMs ?? defaultConfig.imageFrameDurationMs,
                           size: savedImageMetadata.size || effectiveConfig.size,
                           background: savedImageMetadata.background ?? effectiveConfig.background,
                           count: "1",
@@ -2865,6 +2873,9 @@ function InfiniteCanvasPage() {
                           model: generationConfig.model,
                           size: generationConfig.size,
                           quality: generationConfig.quality,
+                          imageOutputFormat: generationConfig.imageOutputFormat,
+                          imageFrameCount: generationConfig.imageFrameCount,
+                          imageFrameDurationMs: generationConfig.imageFrameDurationMs,
                           ...(generationConfig.background ? { background: generationConfig.background } : {}),
                           count: savedImageMetadata.count || 1,
                           references: savedImageMetadata.references,

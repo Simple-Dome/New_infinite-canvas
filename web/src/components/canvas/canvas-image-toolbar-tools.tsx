@@ -135,7 +135,7 @@ export const imageToolDefinitions: ImageToolDefinition[] = [
 export const defaultImageQuickToolIds: ImageQuickToolId[] = [...defaultBaseToolIds, ...imageToolDefinitions.filter((tool) => tool.defaultVisible).map((tool) => tool.id)];
 
 export function buildImageToolbarTools(node: CanvasNodeData, handlers: ImageToolHandlers) {
-    return imageToolDefinitions.map((tool) => ({
+    return imageToolDefinitions.filter((tool) => node.metadata?.mimeType !== "image/gif" || !["maskEdit", "crop", "split", "upscale", "superResolve", "angle"].includes(tool.id)).map((tool) => ({
         id: tool.id,
         label: resolveToolText(tool.label, node),
         title: resolveToolText(tool.title, node),

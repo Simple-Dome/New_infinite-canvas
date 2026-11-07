@@ -772,6 +772,7 @@ function ImageContent({
     const primarySource = primaryContent
         ? pickImageSource({
               previewUrl: primaryPreviewUrl,
+              mimeType: primaryImage?.mimeType || node.metadata?.mimeType,
               originalUrl: primaryContent,
               naturalWidth: primaryImage?.naturalWidth || node.metadata?.naturalWidth,
               naturalHeight: primaryImage?.naturalHeight || node.metadata?.naturalHeight,
@@ -845,6 +846,7 @@ function ExpandedImageCard({ node, image, index, scale, onView, onSetPrimary, on
     const source = image.content
         ? pickImageSource({
               previewUrl: previewUrlFor(image.storageKey),
+              mimeType: image.mimeType,
               originalUrl: image.content,
               naturalWidth: image.naturalWidth,
               naturalHeight: image.naturalHeight,

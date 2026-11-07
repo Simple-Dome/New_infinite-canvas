@@ -1,6 +1,15 @@
 import i18n from "@/i18n";
 import type { ReferenceImage } from "@/types/image";
 
+export function imageMimeType(format: string) {
+    return ({ png: "image/png", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif" } as Record<string, string>)[format] || "image/png";
+}
+
+export function imageFileExtension(mimeType?: string, source = "") {
+    const type = mimeType || source.match(/^data:([^;]+)/)?.[1] || "image/png";
+    return type === "image/jpeg" ? "jpg" : type.split("/")[1]?.split("+")[0] || "png";
+}
+
 export function formatBytes(bytes: number) {
     if (!Number.isFinite(bytes) || bytes <= 0) {
         return "";
@@ -59,5 +68,6 @@ export function dataUrlToFile(image: ReferenceImage) {
     for (let index = 0; index < binary.length; index += 1) {
         bytes[index] = binary.charCodeAt(index);
     }
-    return new File([bytes], image.name || "reference.png", { type: mimeType });
+    const name = mimeType === "image/gif" ? `${(image.name || "reference").replace(/\.[^.]+$/, "")}.gif` : image.name || "reference.png";
+    return new File([bytes], name, { type: mimeType });
 }

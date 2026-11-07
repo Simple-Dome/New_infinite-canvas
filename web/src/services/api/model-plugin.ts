@@ -1,6 +1,7 @@
 import axios, { type AxiosRequestConfig } from "axios";
 
 import i18n from "@/i18n";
+import { imageMimeType } from "@/lib/image-utils";
 import { buildApiUrl, withLocalProxy, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
 
 type RequestOptions = { signal?: AbortSignal };
@@ -239,6 +240,9 @@ export function getPluginTemplates(): Record<ModelCapability, PluginTemplate[]> 
  * @param {string} params.quality - "low" | "medium" | "high" | "xhigh" | "max"
  * @param {number} params.count - number of images
  * @param {string} [params.background] - "transparent" when requested
+ * @param {string} params.output_format - "png" | "gif"
+ * @param {number} [params.frame_count] - GIF frames (2-16)
+ * @param {number} [params.frame_duration_ms] - GIF frame duration in milliseconds
  * @param {string} model
  * @param {string} baseUrl
  * @param {string} apiKey
@@ -253,12 +257,22 @@ async function generateImage({
     quality,
     count,
     background,
+    output_format,
+    frame_count,
+    frame_duration_ms,
   },
   model,
   baseUrl,
   apiKey,
   request,
 }) {
+  const options = {
+    output_format,
+    ...(output_format === "gif"
+      ? { frame_count, frame_duration_ms }
+      : { ...(size ? { size } : {}), ...(quality ? { quality } : {}), ...(background ? { background } : {}) }),
+    ...(/gpt-image/.test(model) ? {} : { response_format: "b64_json" }),
+  };
   if (images.length === 0) {
     const data = await request({
       method: "post",
@@ -271,15 +285,12 @@ async function generateImage({
         model: model,
         prompt: prompt,
         n: count,
-        size: size,
-        quality: quality,
-        background: background,
-        response_format: "b64_json",
+        ...options,
       },
     });
     const urls = [];
     for (const item of data.data || []) {
-      urls.push(item.b64_json ? \`data:image/png;base64,\${item.b64_json}\` : item.url);
+      urls.push(item.b64_json ? \`data:image/\${data.output_format || output_format};base64,\${item.b64_json}\` : item.url);
     }
     return urls;
   }
@@ -288,13 +299,11 @@ async function generateImage({
   form.set("model", model);
   form.set("prompt", prompt);
   form.set("n", String(count));
-  form.set("size", size);
-  form.set("quality", quality);
-  form.set("background", background);
-  form.set("response_format", "b64_json");
+  for (const [key, value] of Object.entries(options)) form.set(key, String(value));
   const imageField = images.length > 1 ? "image[]" : "image";
   for (const dataUrl of images) {
-    form.append(imageField, await (await fetch(dataUrl)).blob(), "ref.png");
+    const blob = await (await fetch(dataUrl)).blob();
+    form.append(imageField, blob, blob.type === "image/gif" ? "ref.gif" : "ref.png");
   }
   const edited = await request({
     method: "post",
@@ -306,7 +315,7 @@ async function generateImage({
   });
   const urls = [];
   for (const item of edited.data || []) {
-    urls.push(item.b64_json ? \`data:image/png;base64,\${item.b64_json}\` : item.url);
+    urls.push(item.b64_json ? \`data:image/\${edited.output_format || output_format};base64,\${item.b64_json}\` : item.url);
   }
   return urls;
 }
@@ -972,7 +981,7 @@ return await generateText({
 }
 
 /** Normalize whatever an image script returns into the app's generated-image shape. */
-export function normalizePluginImages(result: unknown): string[] {
+export function normalizePluginImages(result: unknown, outputFormat = "png"): string[] {
     const items = Array.isArray(result) ? result : [result];
     const urls = items
         .map((item) => {
@@ -981,7 +990,7 @@ export function normalizePluginImages(result: unknown): string[] {
                 const record = item as Record<string, unknown>;
                 if (typeof record.dataUrl === "string") return record.dataUrl;
                 if (typeof record.url === "string") return record.url;
-                if (typeof record.b64_json === "string") return `data:image/png;base64,${record.b64_json}`;
+                if (typeof record.b64_json === "string") return `data:${imageMimeType(typeof record.output_format === "string" ? record.output_format : outputFormat)};base64,${record.b64_json}`;
             }
             return "";
         })
