@@ -69,6 +69,9 @@ export function getAntThemeConfig(dark: boolean): ThemeConfig {
                 darkItemSelectedColor: neutral.dark.itemText,
             },
             Select: {
+                zIndexPopup: 1300,
+                colorBgElevated: color.elevatedBg,
+                colorText: color.itemText,
                 optionActiveBg: color.itemHoverBg,
                 optionSelectedBg: color.itemSelectedBg,
                 optionSelectedColor: color.itemText,
