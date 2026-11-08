@@ -118,3 +118,5 @@ The Chinese version contains the complete item-by-item acceptance checklist.
 ## MiniMax 工作流弹层
 
 - 确认普通和 CF 工作流下拉不被画布面板遮挡，浅色和深色主题下选项、悬停及选中态清晰可见。未运行测试或构建。
+
+- Page and canvas header visibility: Agent, documentation, version, and GitHub actions should be hidden on the canvas list and other pages. The plugin, documentation, version, GitHub, and right-side Agent actions inside the canvas should remain hidden without leaving a separator or empty space; settings, language, theme, and shortcuts should remain available. Existing implementations are retained, and setting `CANVAS_EXTRA_ACTIONS_VISIBLE` to `true` should restore the hidden actions.
