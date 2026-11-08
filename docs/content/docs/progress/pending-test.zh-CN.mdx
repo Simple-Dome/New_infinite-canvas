@@ -155,3 +155,7 @@ Canvas Agent 配置权限
 
 - MiniMax 协议提供 `minimax_h3-480p`、`minimax_h3-768p`、`minimax_h3-1080p`、`minimax_h3-2k`、`minimax_h3-4k`。清晰度随模型变化，普通和 CF 工作流使用对应尺寸及比例；首尾帧和多素材参考按文档提交。
 - 节点和历史重试保留工作流、尺寸及实际秒数；参考文件复用中转站 R2 上传，完成无 URL 时通过认证 content 获取结果。未运行测试、构建或生成请求，待用户验收；TODO 无对应条目需要迁移。
+
+## Seedance 协议名称
+
+- 渠道协议及配置摘要显示 Seedance，内部仍为 `moai`，请求逻辑不变。下游 New API 连接主站时使用 OpenAI 或 Sora，主站连接真实上游继续使用 Moai。未运行测试或构建，待用户验收。

@@ -1,7 +1,7 @@
 export default {
     uploadImages: {
         resultPending: "视频已生成，结果获取尚未完成",
-        moaiOption: "Moai（中转兼容）",
+        moaiOption: "Seedance",
         paused: "等待已暂停，可继续原任务",
         unsupported: "请选择图片、视频或音频文件",
         firstFrame: "首帧", lastFrame: "尾帧", image: "参考图", video: "参考视频", audio: "参考音频", referencesHint: "支持添加图片、视频和音频；首尾帧模式按图片顺序使用第一张和第二张，超过两张图片时改为全能参考。",

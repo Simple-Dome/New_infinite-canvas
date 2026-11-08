@@ -1,7 +1,7 @@
 export default {
     uploadImages: {
         resultPending: "Video generated; result retrieval is incomplete",
-        moaiOption: "Moai (relay compatible)",
+        moaiOption: "Seedance",
         paused: "Waiting paused; resume the same task",
         unsupported: "Choose image, video or audio files",
         firstFrame: "First frame", lastFrame: "Last frame", image: "Reference image", video: "Reference video", audio: "Reference audio", referencesHint: "Add images, videos and audio. Frame mode uses the first two images as first/last frames; more than two images switches to reference mode.",

@@ -418,7 +418,7 @@ function normalizeImageCount(value: string) {
 }
 
 function apiFormatLabel(apiFormat: ApiCallFormat) {
-    if (apiFormat === "moai") return "Moai";
+    if (apiFormat === "moai") return "Seedance";
     if (apiFormat === "grok") return "Grok";
     if (apiFormat === "minimax") return "MiniMax";
     if (apiFormat === "gemini") return "Gemini";
