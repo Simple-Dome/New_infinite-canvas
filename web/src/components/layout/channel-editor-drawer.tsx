@@ -3,6 +3,7 @@ import { ListPlus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { FIXED_API_BASE_URL } from "@/constant/env";
 import { defaultBaseUrlForApiFormat, guessCapability, normalizeChannelModels, type ApiCallFormat, type ChannelModel, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
 import { protocolVideoModels } from "@/lib/video-protocol";
 import { ModelScriptEditor } from "./model-script-editor";
@@ -34,7 +35,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
     const setModels = (models: ChannelModel[]) => patch({ models });
 
     const changeApiFormat = (apiFormat: ApiCallFormat) => {
-        const baseUrl = !draft.baseUrl.trim() || draft.baseUrl.trim() === defaultBaseUrlForApiFormat(draft.apiFormat) ? defaultBaseUrlForApiFormat(apiFormat) : draft.baseUrl;
+        const baseUrl = FIXED_API_BASE_URL || (!draft.baseUrl.trim() || draft.baseUrl.trim() === defaultBaseUrlForApiFormat(draft.apiFormat) ? defaultBaseUrlForApiFormat(apiFormat) : draft.baseUrl);
         const models = (apiFormat === "grok" || apiFormat === "minimax") && !draft.models.length ? protocolVideoModels[apiFormat].map((name) => ({ name, capability: "video" as const })) : draft.models;
         patch({ apiFormat, baseUrl, models });
     };
@@ -49,7 +50,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
     const removeModel = (name: string) => setModels(draft.models.filter((model) => model.name !== name));
 
     const save = () => {
-        onSave({ ...draft, name: draft.name.trim() || t("config.channels.unnamed"), models: normalizeChannelModels(draft.models) });
+        onSave({ ...draft, name: draft.name.trim() || t("config.channels.unnamed"), baseUrl: FIXED_API_BASE_URL || draft.baseUrl.trim(), models: normalizeChannelModels(draft.models) });
         onClose();
     };
 
@@ -80,7 +81,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
                 </label>
                 <label className="block md:col-span-2">
                     <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.baseUrl")}</span>
-                    <Input value={draft.baseUrl} onChange={(event) => patch({ baseUrl: event.target.value })} placeholder="https://api.example.com" />
+                    <Input value={FIXED_API_BASE_URL || draft.baseUrl} disabled={Boolean(FIXED_API_BASE_URL)} onChange={(event) => patch({ baseUrl: event.target.value })} placeholder="https://api.example.com" />
                 </label>
                 <label className="block md:col-span-2">
                     <span className="mb-1 block text-sm font-medium">API Key</span>

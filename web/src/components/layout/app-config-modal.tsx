@@ -4,6 +4,7 @@ import { Cloud, Download, Pencil, Plus, RefreshCw, Trash2, Upload, Wifi } from "
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { FIXED_API_BASE_URL } from "@/constant/env";
 import { ModelPicker } from "@/components/model-picker";
 import { videoResolutionOptions } from "@/components/video-settings-panel";
 import { ChannelEditorDrawer } from "@/components/layout/channel-editor-drawer";
@@ -394,7 +395,7 @@ function withChannels(config: AiConfig, channels: ModelChannel[]): AiConfig {
         ...config,
         channels,
         models: modelOptionsFromChannels(channels),
-        baseUrl: channels[0]?.baseUrl || config.baseUrl,
+        baseUrl: FIXED_API_BASE_URL || channels[0]?.baseUrl || config.baseUrl,
         apiKey: channels[0]?.apiKey || config.apiKey,
         apiFormat: channels[0]?.apiFormat || config.apiFormat,
     };

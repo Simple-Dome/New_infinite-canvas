@@ -1,4 +1,7 @@
-export const APP_VERSION = __APP_VERSION__ || "dev";
+export const APP_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ || "dev" : "dev";
+
+// GPTCH 发布站点只允许通过主站调用模型接口，渠道地址由构建产物固定。
+export const FIXED_API_BASE_URL = "https://gptch.cloud";
 
 // 暂时隐藏页面与画布顶部的插件、文档、版本、GitHub 和 Agent 入口，后续改为 true 恢复。
 export const CANVAS_EXTRA_ACTIONS_VISIBLE = false;
