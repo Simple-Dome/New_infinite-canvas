@@ -7,6 +7,8 @@ description: Implemented changes that still need manual verification
 
 The current release needs manual verification in these areas:
 
+- 生产构建启动：重新构建并发布后，打开 `https://image.gptch.cloud` 应能挂载首页和画布界面，浏览器控制台不应出现 `property-information/*` 模块解析错误；同时确认 Agent 消息中的 Markdown 渲染仍正常。
+
 - GPTCH 渠道地址固定：打开渠道设置、切换协议、导入旧配置或带 `baseUrl` 的 URL 参数后，接口地址都应显示为 `https://gptch.cloud` 且输入框不可编辑；实际请求不得发往其他渠道地址。
 
 - Page and canvas header visibility: Agent, documentation, version, and GitHub actions should be hidden on the canvas list and other pages. The plugin, documentation, version, GitHub, and right-side Agent actions inside the canvas should remain hidden without leaving a separator or empty space; settings, language, theme, and shortcuts should remain available. Existing implementations are retained, and setting `CANVAS_EXTRA_ACTIONS_VISIBLE` to `true` should restore the hidden actions.
