@@ -10,8 +10,9 @@ import { boolConfig, buildApiUrl, modelOptionName, resolveModelRequestConfig, re
 import { runModelPlugin } from "./model-plugin";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
+import { getVideoProtocol, protocolVideoModels, protocolVideoSettings, validateProtocolVideo } from "@/lib/video-protocol";
 
-type VideoResponse = { id: string; status?: string; error?: { message?: string }; url?: string; result_url?: string; video_url?: string; content?: { video_url?: string; url?: string } | null };
+type VideoResponse = { id: string; task_id?: string; fail_reason?: string; status?: string; error?: { message?: string }; url?: string; result_url?: string; video_url?: string; content?: { video_url?: string; url?: string } | null };
 type ApiVideoResponse = VideoResponse | { code?: number | string; data?: VideoResponse | null; msg?: string; message?: string; error?: { message?: string } };
 type ApiEnvelope<T> = T | { code?: number | string; data?: T | null; msg?: string; message?: string; error?: { message?: string } };
 export type VideoGenerationStage = "preparing" | "uploading" | "generating" | "downloading" | "saving";
@@ -80,6 +81,7 @@ export async function createVideoGenerationTask(config: AiConfig, prompt: string
     const requestConfig = resolveModelRequestConfig(config, selectedModel);
     const script = resolveModelScript(config, selectedModel);
     if (!script) assertVideoConfig(requestConfig, requestConfig.model);
+    validateProtocolVideo(requestConfig, prompt, references.length, options?.videos?.length || 0, options?.audios?.length || 0);
     if (requestConfig.apiFormat === "moai") {
         const videos = options?.videos || [];
         if (references.length > 9 || videos.length > 3 || (options?.audios?.length || 0) > 3) throw new Error(apiText("moaiReferenceLimit"));
@@ -106,6 +108,7 @@ export async function pollVideoGenerationTask(config: AiConfig, task: VideoGener
 async function createPluginVideoTask(config: AiConfig, model: string, script: string, prompt: string, references: ReferenceImage[], options?: VideoMediaOptions): Promise<VideoGenerationTask> {
     if (!config.baseUrl.trim()) throw new Error(apiText("baseUrlRequired"));
     if (!config.apiKey.trim()) throw new Error(apiText("apiKeyRequired"));
+    const settings = protocolVideoSettings(config);
     const refs = await Promise.all(references.map((image) => imageToDataUrl(image)));
     const videos = await Promise.all((options?.videos || []).map((video) => referenceMediaToFile(video, "ref.mp4", "invalidReferenceVideo", options)));
     const audios = await Promise.all((options?.audios || []).map((audio) => referenceMediaToFile(audio, "ref.mp3", "invalidReferenceAudio", options)));
@@ -119,13 +122,14 @@ async function createPluginVideoTask(config: AiConfig, model: string, script: st
             videos,
             audios,
             params: {
-                seconds: normalizeVideoSeconds(config.videoSeconds),
+                seconds: settings ? String(settings.seconds) : normalizeVideoSeconds(config.videoSeconds),
                 size: normalizeVideoSize(config.size, config.vquality),
                 resolution: normalizeVideoResolution(config.vquality),
                 ratio: videoAspectRatio(config.size),
                 generateAudio: boolConfig(config.videoGenerateAudio, true),
                 watermark: boolConfig(config.videoWatermark, false),
                 mode: resolveVideoMode(config.videoMode, refs.length),
+                ...(settings ? { duration: settings.seconds, resolution: settings.resolution, aspect_ratio: settings.ratio, generate_audio: boolConfig(config.videoGenerateAudio, true) } : {}),
             },
             signal: options?.signal,
         }),
@@ -156,6 +160,26 @@ export async function storeGeneratedVideo(result: VideoGenerationResult): Promis
 }
 
 async function createOpenAIVideoTask(config: AiConfig, model: string, prompt: string, references: ReferenceImage[], options?: VideoMediaOptions): Promise<VideoGenerationTask> {
+    const settings = protocolVideoSettings(config);
+    if (settings && !protocolVideoModels[settings.protocol].includes(modelOptionName(model))) throw new Error("当前协议不支持所选模型，请检查模型配置。");
+    if (settings?.protocol === "grok") {
+        try {
+            const image = references[0];
+            const source = image?.url || image?.dataUrl || "";
+            const url = !image ? undefined : /^https?:\/\//i.test(source) ? source : await uploadGrokReference(config, dataUrlToFile({ ...image, dataUrl: await imageToDataUrl(image, options) }), options);
+            const body = {
+                model: modelOptionName(model), prompt, duration: settings.seconds, resolution: settings.resolution,
+                generate_audio: boolConfig(config.videoGenerateAudio, true),
+                ...(url ? { image: { url } } : { aspect_ratio: settings.ratio }),
+            };
+            const created = unwrapVideoResponse((await axios.post<ApiVideoResponse>(aiApiUrl(config, "/videos"), body, { headers: aiHeaders(config, "application/json"), signal: options?.signal })).data);
+            const id = created.id || created.task_id;
+            if (!id) throw new Error(apiText("noVideoTaskId"));
+            return { id, provider: "openai", model };
+        } catch (error) {
+            throw new Error(readAxiosError(error, apiText("videoTaskCreateFailed")));
+        }
+    }
     const images = await Promise.all(references.map(async (image) => dataUrlToFile({ ...image, dataUrl: await imageToDataUrl(image) })));
     const videos = await Promise.all((options?.videos || []).map((video) => referenceMediaToFile(video, "ref.mp4", "invalidReferenceVideo", options)));
     const audios = await Promise.all((options?.audios || []).map((audio) => referenceMediaToFile(audio, "ref.mp3", "invalidReferenceAudio", options)));
@@ -192,10 +216,32 @@ async function createOpenAIVideoTask(config: AiConfig, model: string, prompt: st
     audios.forEach((file) => body.append("audio[]", file));
     try {
         const created = unwrapVideoResponse((await axios.post<ApiVideoResponse>(aiApiUrl(config, "/videos"), body, { headers: aiHeaders(config), signal: options?.signal })).data);
-        if (!created.id) throw new Error(apiText("noVideoTaskId"));
-        return { id: created.id, provider: "openai", model };
+        const id = created.id || created.task_id;
+        if (!id) throw new Error(apiText("noVideoTaskId"));
+        return { id, provider: "openai", model };
     } catch (error) {
         throw new Error(readAxiosError(error, apiText("videoTaskCreateFailed")));
+    }
+}
+
+async function uploadGrokReference(config: AiConfig, file: File, options?: RequestOptions) {
+    const baseUrl = `${config.baseUrl.trim().replace(/\/+$/, "").replace(/\/v1$/i, "")}/api/canvas/r2/uploads`;
+    const clientFileId = nanoid();
+    const request = { headers: { ...aiHeaders(config, "application/json"), "Idempotency-Key": nanoid() }, signal: options?.signal };
+    try {
+        const { data: upload } = await axios.post<{ session_id: string; files: { client_file_id: string; put_url: string; put_headers: Record<string, string> }[] }>(withLocalProxy(`${baseUrl}/presign`), {
+            files: [{ client_file_id: clientFileId, name: file.name, content_type: file.type, size: file.size, kind: "image" }],
+        }, request);
+        const signed = upload.files.find((item) => item.client_file_id === clientFileId);
+        if (!signed || !upload.session_id) throw new Error("中转站未返回首帧图片上传地址。");
+        const response = await fetch(withLocalProxy(signed.put_url), { method: "PUT", headers: signed.put_headers, body: file, signal: options?.signal });
+        if (!response.ok) throw new Error(`首帧图片上传失败（HTTP ${response.status}）。`);
+        const { data: completed } = await axios.post<{ files: { client_file_id: string; source_url: string }[] }>(withLocalProxy(`${baseUrl}/complete`), { session_id: upload.session_id }, request);
+        const url = completed.files.find((item) => item.client_file_id === clientFileId)?.source_url;
+        if (!url || !/^https?:\/\//i.test(url)) throw new Error("中转站未返回有效的首帧图片 URL。");
+        return url;
+    } catch (error) {
+        throw new Error(`首帧图片上传失败，请确认当前中转站已启用 R2 上传并允许浏览器跨域访问。${readAxiosError(error, "")}`);
     }
 }
 
@@ -203,14 +249,16 @@ async function pollOpenAIVideoTask(config: AiConfig, task: VideoGenerationTask, 
     try {
         const video = unwrapVideoResponse((await axios.get<ApiVideoResponse>(aiApiUrl(config, `/videos/${task.id}`), { headers: aiHeaders(config), signal: options?.signal })).data);
         const url = videoResultUrl(video);
-        if (url) return { status: "completed", result: await videoResultFromUrl(url, options) };
-        if (video.status === "completed") {
+        const protocol = getVideoProtocol(config);
+        const completed = video.status === "completed" || video.status === "succeeded";
+        if (url && (completed || protocol !== "grok")) return { status: "completed", result: await videoResultFromUrl(url, options) };
+        if (completed) {
             options?.onStage?.("downloading");
             const content = await axios.get<Blob>(aiApiUrl(config, `/videos/${task.id}/content`), { headers: aiHeaders(config), responseType: "blob", signal: options?.signal });
             await assertVideoBlob(content.data);
             return { status: "completed", result: { blob: content.data } };
         }
-        if (video.status === "failed" || video.status === "cancelled") return { status: "failed", error: readApiErrorMessage(video.error?.message) || apiText("videoGenerationFailed") };
+        if (["failed", "cancelled", "expired"].includes(video.status || "")) return { status: "failed", error: readApiErrorMessage(video.fail_reason || video.error?.message) || apiText("videoGenerationFailed") };
         return { status: "pending" };
     } catch (error) {
         throw new Error(await readVideoRequestError(error, apiText("videoTaskQueryFailed")), { cause: error });
@@ -364,6 +412,7 @@ function unwrapEnvelope<T>(payload: ApiEnvelope<T>, emptyMessage: string): T {
         if (!payload.data) throw new Error(emptyMessage);
         return payload.data;
     }
+    if (typeof payload === "object" && "data" in payload && payload.data) return payload.data;
     return payload as T;
 }
 
@@ -385,7 +434,7 @@ function readApiErrorMessage(value: unknown): string {
         }
     }
     if (typeof value !== "object") return "";
-    const payload = value as { msg?: unknown; message?: unknown; error?: unknown; detail?: unknown };
+    const payload = value as { msg?: unknown; message?: unknown; error?: unknown; detail?: unknown; fail_reason?: unknown };
     // error may be a string or an object containing a message.
     const errorMsg =
         typeof payload.error === "string"
@@ -396,6 +445,7 @@ function readApiErrorMessage(value: unknown): string {
         readApiErrorMessage(payload.message) ||
         readApiErrorMessage(errorMsg) ||
         readApiErrorMessage(payload.detail) ||
+        readApiErrorMessage(payload.fail_reason) ||
         ""
     );
 }

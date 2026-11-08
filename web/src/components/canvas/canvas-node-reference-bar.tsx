@@ -9,13 +9,15 @@ import { getGroupResourceNodes } from "@/lib/canvas/canvas-resource-references";
 import { getImagePreviewRevision, previewUrlFor, subscribeImagePreviews } from "@/services/image-storage";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
-import { useConfigStore } from "@/stores/use-config-store";
+import { useEffectiveConfig } from "@/stores/use-config-store";
+import { protocolVideoSettings } from "@/lib/video-protocol";
 
 export function CanvasNodeReferenceBar({ nodeId, nodes, connectedNodes, onDisconnect, onStartSelection }: { nodeId: string; nodes: CanvasNodeData[]; connectedNodes: CanvasNodeData[]; onDisconnect?: (fromNodeId: string, toNodeId: string) => void; onStartSelection?: (nodeId: string) => void }) {
     const { t } = useTranslation();
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const references = connectedNodes.flatMap((sourceNode) => (sourceNode.type === CanvasNodeType.Group ? getGroupResourceNodes(sourceNode.id, nodes) : [sourceNode]).map((node) => ({ node, sourceNodeId: sourceNode.id })));
-    const videoMode = useConfigStore((state) => state.config.videoMode);
+    const config = useEffectiveConfig();
+    const videoMode = config.videoMode;
     const target = nodes.find((node) => node.id === nodeId);
     const isVideo = target?.type === CanvasNodeType.Video || target?.metadata?.generationMode === "video";
     const imageReferences = references.filter(({ node }) => node.type === CanvasNodeType.Image);
@@ -24,7 +26,8 @@ export function CanvasNodeReferenceBar({ nodeId, nodes, connectedNodes, onDiscon
         ? [...composer.matchAll(/@\[node:([^\]]+)\]/g)].flatMap((match) => imageReferences.filter((item) => item.sourceNodeId === match[1] || item.node.id === match[1]))
         : imageReferences;
     const images = [...new Map(ordered.map((item) => [item.node.id, item])).values()];
-    const frames = (target?.metadata?.videoMode || videoMode) !== "reference" && images.length <= 2;
+    const settings = protocolVideoSettings({ ...config, model: target?.metadata?.model || config.videoModel, videoWorkflow: target?.metadata?.videoWorkflow ?? config.videoWorkflow });
+    const frames = settings ? settings.protocol === "grok" || settings.workflow.endsWith("fl2v") : (target?.metadata?.videoMode || videoMode) !== "reference" && images.length <= 2;
     return (
         <div className="mb-2">
             <div className="mb-1.5 text-[11px] font-medium" style={{ color: theme.node.muted }}>{t("canvas.references.title")}</div>
@@ -33,6 +36,7 @@ export function CanvasNodeReferenceBar({ nodeId, nodes, connectedNodes, onDiscon
                     const index = images.findIndex((item) => item.node.id === node.id);
                     let label: string | undefined;
                     if (isVideo && index >= 0) label = frames ? t(index === 0 ? "uploadImages.firstFrame" : "uploadImages.lastFrame") : `${t("uploadImages.image")} ${index + 1}`;
+                    if (isVideo && settings?.protocol === "grok" && index > 0) label = "不支持的参考图";
                     return <ReferenceItem key={`${sourceNodeId}:${node.id}`} node={node} label={label} onRemove={() => onDisconnect?.(sourceNodeId, nodeId)} />;
                 })}
                 <button type="button" className="grid size-12 shrink-0 place-items-center rounded-xl border bg-transparent transition hover:opacity-70" style={{ borderColor: theme.toolbar.border, color: theme.node.muted }} title={t("canvas.references.select")} onClick={() => onStartSelection?.(nodeId)}>

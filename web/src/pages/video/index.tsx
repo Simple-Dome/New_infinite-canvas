@@ -10,6 +10,7 @@ import { AssetPickerModal, type InsertAssetPayload } from "@/components/canvas/a
 import { ModelPicker } from "@/components/model-picker";
 import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
 import { VideoSettingsPanel, normalizeVideoResolutionValue, normalizeVideoSizeValue, videoModeLabel, videoSizeLabel } from "@/components/video-settings-panel";
+import { getVideoProtocol, normalizeProtocolVideoConfig, protocolVideoSettings } from "@/lib/video-protocol";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { clampVideoSeconds } from "@/lib/media-size";
 import { formatBytes, formatDuration } from "@/lib/image-utils";
@@ -64,7 +65,7 @@ type GenerationLog = {
     error?: string;
 };
 
-type GenerationLogConfig = Pick<AiConfig, "model" | "videoModel" | "size" | "vquality" | "videoSeconds" | "videoGenerateAudio" | "videoWatermark" | "videoMode">;
+type GenerationLogConfig = Pick<AiConfig, "model" | "videoModel" | "size" | "vquality" | "videoSeconds" | "videoGenerateAudio" | "videoWatermark" | "videoMode" | "videoWorkflow">;
 
 type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
 
@@ -110,7 +111,8 @@ export default function VideoPage() {
     const agentTaskIdRef = useRef<string | undefined>(undefined);
 
     const model = effectiveConfig.videoModel || effectiveConfig.model;
-    const canGenerate = Boolean(prompt.trim());
+    const protocolSettings = protocolVideoSettings({ ...effectiveConfig, model });
+    const canGenerate = Boolean(prompt.trim()) || (getVideoProtocol({ ...effectiveConfig, model }) === "grok" && references.length === 1);
 
     useEffect(() => {
         if (!running || !startedAt) return;
@@ -233,7 +235,7 @@ export default function VideoPage() {
 
     const buildRequestSnapshot = () => {
         const text = prompt.trim();
-        if (!text) {
+        if (!text && !(getVideoProtocol({ ...effectiveConfig, model }) === "grok" && references.length === 1)) {
             message.error(t("videoWorkbench.promptRequired"));
             return null;
         }
@@ -374,6 +376,7 @@ export default function VideoPage() {
         if (log.config.videoGenerateAudio) updateConfig("videoGenerateAudio", log.config.videoGenerateAudio);
         if (log.config.videoWatermark) updateConfig("videoWatermark", log.config.videoWatermark);
         if (log.config.videoMode) updateConfig("videoMode", log.config.videoMode);
+        updateConfig("videoWorkflow", log.config.videoWorkflow);
         setResults(log.status === "pending" ? [{ id: log.id, status: "pending" }] : log.video ? [{ id: log.video.id, status: "success", video: log.video }] : [{ id: log.id, status: "failed", error: log.error || t("workbench.generationFailed") }]);
     };
 
@@ -439,7 +442,7 @@ export default function VideoPage() {
                                     {references.map((item, index) => (
                                         <div key={item.id} className="group relative size-20 shrink-0 overflow-hidden rounded-md border border-stone-200 dark:border-stone-800">
                                             <img src={previewUrlFor(item.storageKey) || item.dataUrl} alt={item.name} className="size-full object-cover" />
-                                            <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">{effectiveConfig.videoMode !== "reference" && references.length <= 2 ? t(index === 0 ? "uploadImages.firstFrame" : "uploadImages.lastFrame") : `${t("uploadImages.image")} ${index + 1}`}</span>
+                                            <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">{(protocolSettings ? protocolSettings.protocol === "grok" || protocolSettings.workflow.endsWith("fl2v") : effectiveConfig.videoMode !== "reference" && references.length <= 2) ? t(index === 0 ? "uploadImages.firstFrame" : "uploadImages.lastFrame") : `${t("uploadImages.image")} ${index + 1}`}</span>
                                             <ReferenceOrderButtons index={index} total={references.length} onMove={(offset) => setReferences((value) => moveListItem(value, index, offset))} />
                                             <button type="button" className="absolute right-1 top-1 hidden size-6 items-center justify-center rounded bg-black/60 text-white group-hover:flex" onClick={() => setReferences((value) => value.filter((ref) => ref.id !== item.id))} aria-label={t("videoWorkbench.removeImage")}>
                                                 <Trash2 className="size-3.5" />
@@ -466,10 +469,10 @@ export default function VideoPage() {
                                 </div>
                             </div>
 
-                            <p className="text-xs opacity-60">{t("uploadImages.referencesHint")}</p>
+                            <p className="text-xs opacity-60">{protocolSettings?.protocol === "grok" ? "仅支持一张首帧图片，比例跟随图片；提示词可选。" : t("uploadImages.referencesHint")}</p>
                             <div className="flex items-center justify-between rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm dark:border-stone-800 dark:bg-stone-900 sm:hidden">
                                 <span className="truncate text-stone-500 dark:text-stone-400">
-                                    {modelOptionLabel(effectiveConfig, model)} · {normalizeResolution(effectiveConfig.vquality)}p · {videoSizeLabel(effectiveConfig.size)} · {normalizeVideoSeconds(effectiveConfig.videoSeconds)}s · {videoModeLabel(effectiveConfig.videoMode)}
+                                    {modelOptionLabel(effectiveConfig, model)} · {protocolSettings ? `${protocolSettings.resolution.toUpperCase()} · ${protocolSettings.ratio} · ${protocolSettings.seconds}s` : `${normalizeResolution(effectiveConfig.vquality)}p · ${videoSizeLabel(effectiveConfig.size)} · ${normalizeVideoSeconds(effectiveConfig.videoSeconds)}s · ${videoModeLabel(effectiveConfig.videoMode)}`}
                                 </span>
                                 <Button size="small" type="text" icon={<SlidersHorizontal className="size-4" />} onClick={() => setSettingsOpen(true)}>
                                     {t("workbench.adjust")}
@@ -509,7 +512,7 @@ export default function VideoPage() {
             <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,video/*,audio/*"
+                accept={protocolSettings?.protocol === "grok" ? "image/*" : "image/*,video/*,audio/*"}
                 multiple
                 className="hidden"
                 onChange={(event) => {
@@ -542,10 +545,10 @@ function GenerationSettings({ config, model, updateConfig, openConfigDialog }: {
         <>
             <label className="col-span-2 block min-w-0 sm:col-span-1">
                 <span className="mb-1.5 block text-sm font-semibold sm:mb-2 sm:text-base">{t("workbench.model")}</span>
-                <ModelPicker config={config} value={model} onChange={(value) => updateConfig("videoModel", value)} capability="video" fullWidth onMissingConfig={() => openConfigDialog(false)} />
+                <ModelPicker config={config} value={model} onChange={(value) => { updateConfig("videoModel", value); if (protocolVideoSettings({ ...config, model: value })) { updateConfig("size", "16:9"); updateConfig("videoWorkflow", ""); } }} capability="video" fullWidth onMissingConfig={() => openConfigDialog(false)} />
             </label>
             <div className="col-span-2">
-                <VideoSettingsPanel config={config} onConfigChange={(key, value) => updateConfig(key, value)} theme={theme} showTitle={false} className="space-y-4" />
+                <VideoSettingsPanel config={{ ...config, model }} onConfigChange={(key, value) => updateConfig(key, value)} theme={theme} showTitle={false} className="space-y-4" />
             </div>
         </>
     );
@@ -761,11 +764,12 @@ function normalizeLogConfig(log: Partial<GenerationLog>): GenerationLogConfig {
         model: log.config?.model || log.model || "",
         videoModel: log.config?.videoModel || log.model || "",
         size: log.config?.size || log.size || "",
-        vquality: normalizeResolution(log.config?.vquality || log.resolution || ""),
+        vquality: log.config?.vquality || log.resolution || "",
         videoSeconds: log.config?.videoSeconds || log.seconds || "",
         videoGenerateAudio: log.config?.videoGenerateAudio || "true",
         videoWatermark: log.config?.videoWatermark || "false",
         videoMode: log.config?.videoMode === "reference" ? "reference" : "frames",
+        videoWorkflow: log.config?.videoWorkflow || "",
     };
 }
 
@@ -774,11 +778,12 @@ function buildLog({ prompt, model, config, references, durationMs, status, task,
         model: config.model,
         videoModel: config.videoModel,
         size: config.size,
-        vquality: normalizeResolution(config.vquality),
+        vquality: config.vquality,
         videoSeconds: config.videoSeconds,
         videoGenerateAudio: config.videoGenerateAudio,
         videoWatermark: config.videoWatermark,
         videoMode: config.videoMode === "reference" ? "reference" : "frames",
+        videoWorkflow: config.videoWorkflow,
     };
     return {
         id: nanoid(),
@@ -801,6 +806,7 @@ function buildLog({ prompt, model, config, references, durationMs, status, task,
 }
 
 function buildVideoConfig(config: AiConfig, model: string): AiConfig {
+    if (protocolVideoSettings({ ...config, model })) return normalizeProtocolVideoConfig({ ...config, model, videoModel: model });
     return {
         ...config,
         model,
@@ -811,6 +817,7 @@ function buildVideoConfig(config: AiConfig, model: string): AiConfig {
         videoGenerateAudio: String(boolConfig(config.videoGenerateAudio, true)),
         videoWatermark: String(boolConfig(config.videoWatermark, false)),
         videoMode: config.videoMode === "reference" ? "reference" : "frames",
+        videoWorkflow: config.videoWorkflow,
     };
 }
 

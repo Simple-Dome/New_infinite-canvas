@@ -1,11 +1,12 @@
 import { type ReactNode } from "react";
-import { Slider } from "antd";
+import { Select, Slider, Switch } from "antd";
 import { useTranslation } from "react-i18next";
 
 import i18n from "@/i18n";
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import { clampVideoSeconds, computeVideoSize, inferVideoRatio, parseVideoResolution, readVideoDimensions, VIDEO_SECONDS_MAX, VIDEO_SECONDS_MIN, videoRatioOptions } from "@/lib/media-size";
+import { protocolVideoSettings } from "@/lib/video-protocol";
 import { type AiConfig } from "@/stores/use-config-store";
 
 const resolutionOptions = [
@@ -24,7 +25,7 @@ export const videoSecondsRange = { min: VIDEO_SECONDS_MIN, max: VIDEO_SECONDS_MA
 
 type VideoSettingsPanelProps = {
     config: AiConfig;
-    onConfigChange: (key: "vquality" | "size" | "videoSeconds" | "videoGenerateAudio" | "videoWatermark" | "videoMode", value: string) => void;
+    onConfigChange: (key: "vquality" | "size" | "videoSeconds" | "videoGenerateAudio" | "videoWatermark" | "videoMode" | "videoWorkflow", value: string) => void;
     theme: CanvasTheme;
     showTitle?: boolean;
     className?: string;
@@ -32,6 +33,8 @@ type VideoSettingsPanelProps = {
 
 export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5" }: VideoSettingsPanelProps) {
     const { t } = useTranslation();
+    const protocolSettings = protocolVideoSettings(config);
+    if (protocolSettings) return <ProtocolVideoSettings config={config} onConfigChange={onConfigChange} theme={theme} showTitle={showTitle} className={className} />;
     const seconds = Number(clampVideoSeconds(config.videoSeconds || "6"));
     const videoMode = normalizeVideoModeValue(config.videoMode);
     const resolution = parseVideoResolution(config.vquality);
@@ -105,6 +108,28 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
     );
 }
 
+function ProtocolVideoSettings({ config, onConfigChange, theme, showTitle, className }: VideoSettingsPanelProps) {
+    const { resolution, ratios, ratio, seconds } = protocolVideoSettings(config)!;
+    return (
+        <ImageSettingsTheme theme={theme}>
+            <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
+                {showTitle ? <div className="text-lg font-semibold">Grok 视频设置</div> : null}
+                <p className="text-xs leading-5" style={{ color: theme.node.muted }}>支持文生视频或单张图片首帧；图生视频可不填提示词，比例跟随首帧，下方比例设置不生效。不支持尾帧或其他参考素材。</p>
+                <SettingGroup title="清晰度" color={theme.node.muted}>
+                    <div className="grid grid-cols-3 gap-2.5">{["480p", "720p", "1080p"].map((value) => <OptionPill key={value} selected={resolution === value} theme={theme} onClick={() => onConfigChange("vquality", value.replace("p", ""))}>{value}</OptionPill>)}</div>
+                </SettingGroup>
+                <SettingGroup title="比例" color={theme.node.muted}>
+                    <div className="grid grid-cols-4 gap-2">{ratios.map((value) => <OptionPill key={value} selected={ratio === value} theme={theme} onClick={() => onConfigChange("size", value)}>{value}</OptionPill>)}</div>
+                </SettingGroup>
+                <SettingGroup title="时长（秒）" color={theme.node.muted}>
+                    <div className="flex items-center gap-3"><Slider className="min-w-0 flex-1" min={1} max={15} step={1} value={seconds} onChange={(value) => onConfigChange("videoSeconds", String(value))} /><SecondsInput value={seconds} theme={theme} min={1} max={15} onCommit={(value) => onConfigChange("videoSeconds", String(value))} /></div>
+                </SettingGroup>
+                <div className="flex items-center justify-between text-sm"><span>生成音频</span><Switch size="small" checked={config.videoGenerateAudio !== "false"} onChange={(value) => onConfigChange("videoGenerateAudio", String(value))} /></div>
+            </div>
+        </ImageSettingsTheme>
+    );
+}
+
 export function videoResolutionLabel(value: string) {
     return `${parseVideoResolution(value)}p`;
 }
@@ -173,9 +198,9 @@ function ResolutionInput({ value, theme, onChange }: { value: string; theme: Can
     );
 }
 
-function SecondsInput({ value, theme, onCommit }: { value: number; theme: CanvasTheme; onCommit: (value: number) => void }) {
+function SecondsInput({ value, theme, onCommit, min = VIDEO_SECONDS_MIN, max = VIDEO_SECONDS_MAX }: { value: number; theme: CanvasTheme; onCommit: (value: number) => void; min?: number; max?: number }) {
     const commit = (input: HTMLInputElement) => {
-        const next = Number(clampVideoSeconds(input.value));
+        const next = Math.max(min, Math.min(max, Math.floor(Number(input.value) || value)));
         input.value = String(next);
         onCommit(next);
     };
@@ -184,8 +209,8 @@ function SecondsInput({ value, theme, onCommit }: { value: number; theme: Canvas
         <label className="flex h-9 w-[68px] shrink-0 overflow-hidden rounded-xl text-sm" style={{ background: theme.node.fill, color: theme.node.text }}>
             <input
                 type="number"
-                min={VIDEO_SECONDS_MIN}
-                max={VIDEO_SECONDS_MAX}
+                min={min}
+                max={max}
                 className="min-w-0 flex-1 bg-transparent px-2 text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 defaultValue={value}
                 key={value}
@@ -199,7 +224,7 @@ function SecondsInput({ value, theme, onCommit }: { value: number; theme: Canvas
     );
 }
 
-function DimensionInput({ prefix, value, disabled, theme, onChange }: { prefix: string; value: number; disabled: boolean; theme: CanvasTheme; onChange: (value: number | null) => void }) {
+function DimensionInput({ prefix, value, disabled = false, theme, onChange }: { prefix: string; value: number; disabled?: boolean; theme: CanvasTheme; onChange: (value: number | null) => void }) {
     return (
         <label className="flex h-9 overflow-hidden rounded-xl text-sm" style={{ background: theme.node.fill, color: theme.node.text, opacity: disabled ? 0.55 : 1 }}>
             <span className="grid w-9 place-items-center" style={{ color: theme.node.muted }}>
