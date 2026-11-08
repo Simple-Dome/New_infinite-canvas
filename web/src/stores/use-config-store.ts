@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 
 import i18n from "@/i18n";
 
-export type ApiCallFormat = "openai" | "gemini" | "moai" | "grok";
+export type ApiCallFormat = "openai" | "gemini" | "moai" | "grok" | "minimax";
 export type ModelCapability = "image" | "video" | "text" | "audio";
 export type ReasoningEffort = "auto" | "low" | "medium" | "high" | "xhigh";
 
@@ -158,7 +158,7 @@ type ConfigStore = {
     clearPromptContinue: () => void;
 };
 
-const VIDEO_KEYWORDS = ["video", "sora", "veo", "kling", "wan", "hailuo", "sd-2", "moai"];
+const VIDEO_KEYWORDS = ["video", "sora", "veo", "kling", "wan", "hailuo", "sd-2", "moai", "minimax_h3"];
 
 export function boolConfig(value: string, fallback: boolean) {
     return value ? value === "true" : fallback;
@@ -480,13 +480,13 @@ function normalizeChannels(config: AiConfig) {
 }
 
 export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {
-    if (apiFormat === "moai" || apiFormat === "grok") return "";
+    if (apiFormat === "moai" || apiFormat === "grok" || apiFormat === "minimax") return "";
     if (apiFormat === "gemini") return GEMINI_BASE_URL;
     return OPENAI_BASE_URL;
 }
 
 function normalizeApiFormat(apiFormat: unknown): ApiCallFormat {
-    return apiFormat === "gemini" || apiFormat === "moai" || apiFormat === "grok" ? apiFormat : "openai";
+    return apiFormat === "gemini" || apiFormat === "moai" || apiFormat === "grok" || apiFormat === "minimax" ? apiFormat : "openai";
 }
 
 function uniqueModelOptions(models: string[]) {

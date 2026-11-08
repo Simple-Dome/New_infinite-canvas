@@ -469,7 +469,7 @@ export default function VideoPage() {
                                 </div>
                             </div>
 
-                            <p className="text-xs opacity-60">{protocolSettings?.protocol === "grok" ? "仅支持一张首帧图片，比例跟随图片；提示词可选。" : t("uploadImages.referencesHint")}</p>
+                            <p className="text-xs opacity-60">{protocolSettings?.protocol === "grok" ? "仅支持一张首帧图片，比例跟随图片；提示词可选。" : protocolSettings?.protocol === "minimax" ? "素材要求随所选工作流变化；首尾帧图片按排列顺序提交。" : t("uploadImages.referencesHint")}</p>
                             <div className="flex items-center justify-between rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm dark:border-stone-800 dark:bg-stone-900 sm:hidden">
                                 <span className="truncate text-stone-500 dark:text-stone-400">
                                     {modelOptionLabel(effectiveConfig, model)} · {protocolSettings ? `${protocolSettings.resolution.toUpperCase()} · ${protocolSettings.ratio} · ${protocolSettings.seconds}s` : `${normalizeResolution(effectiveConfig.vquality)}p · ${videoSizeLabel(effectiveConfig.size)} · ${normalizeVideoSeconds(effectiveConfig.videoSeconds)}s · ${videoModeLabel(effectiveConfig.videoMode)}`}

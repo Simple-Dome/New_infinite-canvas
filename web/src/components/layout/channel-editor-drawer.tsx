@@ -18,6 +18,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
     const apiFormatOptions: Array<{ label: string; value: ApiCallFormat }> = [
         { label: "OpenAI", value: "openai" },
         { label: "Grok", value: "grok" },
+        { label: "MiniMax", value: "minimax" },
         { label: t("uploadImages.moaiOption"), value: "moai" },
         { label: "Gemini", value: "gemini" },
     ];
@@ -34,7 +35,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
 
     const changeApiFormat = (apiFormat: ApiCallFormat) => {
         const baseUrl = !draft.baseUrl.trim() || draft.baseUrl.trim() === defaultBaseUrlForApiFormat(draft.apiFormat) ? defaultBaseUrlForApiFormat(apiFormat) : draft.baseUrl;
-        const models = apiFormat === "grok" && !draft.models.length ? protocolVideoModels[apiFormat].map((name) => ({ name, capability: "video" as const })) : draft.models;
+        const models = (apiFormat === "grok" || apiFormat === "minimax") && !draft.models.length ? protocolVideoModels[apiFormat].map((name) => ({ name, capability: "video" as const })) : draft.models;
         patch({ apiFormat, baseUrl, models });
     };
 
@@ -87,7 +88,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
                 </label>
             </div>
 
-            {["moai", "grok"].includes(draft.apiFormat) ? <p className="mt-3 text-xs opacity-60">{t("uploadImages.moaiHint")}</p> : null}
+            {["moai", "grok", "minimax"].includes(draft.apiFormat) ? <p className="mt-3 text-xs opacity-60">{t("uploadImages.moaiHint")}</p> : null}
             <div className="mt-6 mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div>
                     <div className="text-sm font-semibold">{t("config.channelEditor.models")}</div>

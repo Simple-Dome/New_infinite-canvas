@@ -6,7 +6,7 @@ import i18n from "@/i18n";
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import { clampVideoSeconds, computeVideoSize, inferVideoRatio, parseVideoResolution, readVideoDimensions, VIDEO_SECONDS_MAX, VIDEO_SECONDS_MIN, videoRatioOptions } from "@/lib/media-size";
-import { protocolVideoSettings } from "@/lib/video-protocol";
+import { minimaxVideoSize, protocolVideoSettings } from "@/lib/video-protocol";
 import { type AiConfig } from "@/stores/use-config-store";
 
 const resolutionOptions = [
@@ -109,22 +109,37 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
 }
 
 function ProtocolVideoSettings({ config, onConfigChange, theme, showTitle, className }: VideoSettingsPanelProps) {
-    const { resolution, ratios, ratio, seconds } = protocolVideoSettings(config)!;
+    const settings = protocolVideoSettings(config)!;
+    const { protocol, resolution, cf, ratios, ratio, workflow, seconds } = settings;
+    const dimensions = settings.size.match(/^(\d+)x(\d+)$/);
+    const selectRatio = (value: string) => onConfigChange("size", protocol === "minimax" && !cf ? minimaxVideoSize(resolution, value) : value);
+    const workflowLabels: Record<string, string> = { "text-to-video": "文生视频", fl2v: "首尾帧", "multi-reference": "多素材参考", "cf-fl2v": "CF 首尾帧", "cf-multi-reference": "CF 多素材参考", "cf-mj": "CF MJ（素材规则以上游为准）" };
     return (
         <ImageSettingsTheme theme={theme}>
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
-                {showTitle ? <div className="text-lg font-semibold">Grok 视频设置</div> : null}
-                <p className="text-xs leading-5" style={{ color: theme.node.muted }}>支持文生视频或单张图片首帧；图生视频可不填提示词，比例跟随首帧，下方比例设置不生效。不支持尾帧或其他参考素材。</p>
+                {showTitle ? <div className="text-lg font-semibold">{protocol === "grok" ? "Grok" : "MiniMax"} 视频设置</div> : null}
+                {protocol === "minimax" ? <SettingGroup title="工作流" color={theme.node.muted}>
+                    <Select className="w-full" value={workflow} options={settings.workflows.map((value) => ({ value, label: workflowLabels[value] }))} onChange={(value) => onConfigChange("videoWorkflow", value)} />
+                    <p className="text-xs leading-5" style={{ color: theme.node.muted }}>{workflow.endsWith("fl2v") ? "需要 1～2 张图片，按顺序作为首帧、尾帧；不支持视频和音频参考。" : workflow === "text-to-video" ? "仅使用提示词，不支持参考素材。" : "参考素材可选，最多 9 张图片、3 个视频、3 个音频。"}{workflow === "cf-mj" ? "此工作流的具体素材要求未在文档中说明，请以上游实际规则为准。" : ""}</p>
+                </SettingGroup> : <p className="text-xs leading-5" style={{ color: theme.node.muted }}>支持文生视频或单张图片首帧；图生视频可不填提示词，比例跟随首帧，下方比例设置不生效。不支持尾帧或其他参考素材。</p>}
                 <SettingGroup title="清晰度" color={theme.node.muted}>
-                    <div className="grid grid-cols-3 gap-2.5">{["480p", "720p", "1080p"].map((value) => <OptionPill key={value} selected={resolution === value} theme={theme} onClick={() => onConfigChange("vquality", value.replace("p", ""))}>{value}</OptionPill>)}</div>
+                    {protocol === "grok" ? <div className="grid grid-cols-3 gap-2.5">{["480p", "720p", "1080p"].map((value) => <OptionPill key={value} selected={resolution === value} theme={theme} onClick={() => onConfigChange("vquality", value.replace("p", ""))}>{value}</OptionPill>)}</div> : <div className="text-sm">{resolution.toUpperCase()} · 由所选模型决定</div>}
                 </SettingGroup>
                 <SettingGroup title="比例" color={theme.node.muted}>
-                    <div className="grid grid-cols-4 gap-2">{ratios.map((value) => <OptionPill key={value} selected={ratio === value} theme={theme} onClick={() => onConfigChange("size", value)}>{value}</OptionPill>)}</div>
+                    <div className="grid grid-cols-4 gap-2">{ratios.map((value) => <OptionPill key={value} selected={ratio === value} theme={theme} onClick={() => selectRatio(value)}>{value}</OptionPill>)}</div>
                 </SettingGroup>
+                {protocol === "minimax" && !cf && dimensions ? <SettingGroup title="尺寸（可自定义）" color={theme.node.muted}>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2.5">
+                        <DimensionInput prefix="W" value={Number(dimensions[1])} theme={theme} onChange={(value) => onConfigChange("size", `${Math.max(1, value || 1)}x${dimensions[2]}`)} />
+                        <span>×</span>
+                        <DimensionInput prefix="H" value={Number(dimensions[2])} theme={theme} onChange={(value) => onConfigChange("size", `${dimensions[1]}x${Math.max(1, value || 1)}`)} />
+                    </div>
+                </SettingGroup> : null}
                 <SettingGroup title="时长（秒）" color={theme.node.muted}>
                     <div className="flex items-center gap-3"><Slider className="min-w-0 flex-1" min={1} max={15} step={1} value={seconds} onChange={(value) => onConfigChange("videoSeconds", String(value))} /><SecondsInput value={seconds} theme={theme} min={1} max={15} onCommit={(value) => onConfigChange("videoSeconds", String(value))} /></div>
+                    {protocol === "minimax" ? <p className="text-xs" style={{ color: theme.node.muted }}>可选范围按接口文档展示，具体时长以上游模型支持为准。</p> : null}
                 </SettingGroup>
-                <div className="flex items-center justify-between text-sm"><span>生成音频</span><Switch size="small" checked={config.videoGenerateAudio !== "false"} onChange={(value) => onConfigChange("videoGenerateAudio", String(value))} /></div>
+                {protocol === "grok" ? <div className="flex items-center justify-between text-sm"><span>生成音频</span><Switch size="small" checked={config.videoGenerateAudio !== "false"} onChange={(value) => onConfigChange("videoGenerateAudio", String(value))} /></div> : null}
             </div>
         </ImageSettingsTheme>
     );

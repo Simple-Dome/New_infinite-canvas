@@ -129,7 +129,7 @@ async function createPluginVideoTask(config: AiConfig, model: string, script: st
                 generateAudio: boolConfig(config.videoGenerateAudio, true),
                 watermark: boolConfig(config.videoWatermark, false),
                 mode: resolveVideoMode(config.videoMode, refs.length),
-                ...(settings ? { duration: settings.seconds, resolution: settings.resolution, aspect_ratio: settings.ratio, generate_audio: boolConfig(config.videoGenerateAudio, true) } : {}),
+                ...(settings ? { duration: settings.seconds, resolution: settings.resolution, aspect_ratio: settings.ratio, ...(settings.protocol === "minimax" ? { workflow_id: settings.workflow, size: settings.size } : {}), generate_audio: boolConfig(config.videoGenerateAudio, true) } : {}),
             },
             signal: options?.signal,
         }),
@@ -188,32 +188,42 @@ async function createOpenAIVideoTask(config: AiConfig, model: string, prompt: st
     const body = new FormData();
     body.append("model", modelOptionName(model));
     body.append("prompt", prompt);
-    body.append("seconds", normalizeVideoSeconds(config.videoSeconds));
-    body.append("size", normalizeVideoSize(config.size, config.vquality) || "1280x720");
-    if (ratio && ratio !== "auto") {
-        body.append("ratio", ratio);
-    }
-    body.append("resolution_name", normalizeVideoResolution(config.vquality));
-    body.append("generate_audio", String(boolConfig(config.videoGenerateAudio, true)));
-    body.append("watermark", String(boolConfig(config.videoWatermark, false)));
-    body.append("mode", mode);
-    if (mode === "frames") {
-        if (images[0]) {
-            body.append("first_frame", images[0], "first.png");
-            if (config.apiFormat !== "moai") body.append("images", images[0], "first.png");
-        }
-        if (images[1]) {
-            body.append("last_frame", images[1], "last.png");
-            if (config.apiFormat !== "moai") body.append("images", images[1], "last.png");
-        }
+    if (settings) {
+        body.append("seconds", String(settings.seconds));
+        body.append("workflow_id", settings.workflow);
+        body.append("size", settings.size);
+        if (settings.cf) body.append("aspect_ratio", settings.ratio);
+        images.forEach((file) => body.append("images", file, file.name));
+        videos.forEach((file) => body.append("reference_videos", file));
+        audios.forEach((file) => body.append("reference_audios", file));
     } else {
-        images.forEach((file, idx) => {
-            body.append("image[]", file, `ref_${idx + 1}.png`);
-            if (config.apiFormat !== "moai") body.append("images", file, `ref_${idx + 1}.png`);
-        });
+        body.append("seconds", normalizeVideoSeconds(config.videoSeconds));
+        body.append("size", normalizeVideoSize(config.size, config.vquality) || "1280x720");
+        if (ratio && ratio !== "auto") {
+            body.append("ratio", ratio);
+        }
+        body.append("resolution_name", normalizeVideoResolution(config.vquality));
+        body.append("generate_audio", String(boolConfig(config.videoGenerateAudio, true)));
+        body.append("watermark", String(boolConfig(config.videoWatermark, false)));
+        body.append("mode", mode);
+        if (mode === "frames") {
+            if (images[0]) {
+                body.append("first_frame", images[0], "first.png");
+                if (config.apiFormat !== "moai") body.append("images", images[0], "first.png");
+            }
+            if (images[1]) {
+                body.append("last_frame", images[1], "last.png");
+                if (config.apiFormat !== "moai") body.append("images", images[1], "last.png");
+            }
+        } else {
+            images.forEach((file, idx) => {
+                body.append("image[]", file, `ref_${idx + 1}.png`);
+                if (config.apiFormat !== "moai") body.append("images", file, `ref_${idx + 1}.png`);
+            });
+        }
+        videos.forEach((file) => body.append("video[]", file));
+        audios.forEach((file) => body.append("audio[]", file));
     }
-    videos.forEach((file) => body.append("video[]", file));
-    audios.forEach((file) => body.append("audio[]", file));
     try {
         const created = unwrapVideoResponse((await axios.post<ApiVideoResponse>(aiApiUrl(config, "/videos"), body, { headers: aiHeaders(config), signal: options?.signal })).data);
         const id = created.id || created.task_id;
@@ -251,7 +261,7 @@ async function pollOpenAIVideoTask(config: AiConfig, task: VideoGenerationTask, 
         const url = videoResultUrl(video);
         const protocol = getVideoProtocol(config);
         const completed = video.status === "completed" || video.status === "succeeded";
-        if (url && (completed || protocol !== "grok")) return { status: "completed", result: await videoResultFromUrl(url, options) };
+        if (url && (completed || (protocol !== "grok" && protocol !== "minimax"))) return { status: "completed", result: await videoResultFromUrl(url, options) };
         if (completed) {
             options?.onStage?.("downloading");
             const content = await axios.get<Blob>(aiApiUrl(config, `/videos/${task.id}/content`), { headers: aiHeaders(config), responseType: "blob", signal: options?.signal });

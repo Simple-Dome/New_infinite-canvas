@@ -105,3 +105,8 @@ The Chinese version contains the complete item-by-item acceptance checklist.
 
 - 使用 `grok-imagine-video-1.5` 和 Grok 协议连接中转站；支持 1～15 秒、480p / 720p / 1080p、七种比例、显式关闭音频及无提示词单首帧。首帧复用当前中转站 R2 上传后以 HTTP(S) URL 提交；多图、视频或音频参考应拦截。
 - 画布节点和视频工作台应保留实际参数，支持原任务续查、认证下载和错误原因展示。本次未运行测试、构建或生成请求，待用户验收。
+
+## MiniMax 视频渠道
+
+- MiniMax 协议提供 `minimax_h3-480p`、`minimax_h3-768p`、`minimax_h3-1080p`、`minimax_h3-2k`、`minimax_h3-4k`。清晰度随模型变化，普通和 CF 工作流使用对应尺寸及比例；首尾帧和多素材参考按文档提交。
+- 节点和历史重试保留工作流、尺寸及实际秒数；参考文件复用中转站 R2 上传，完成无 URL 时通过认证 content 获取结果。未运行测试、构建或生成请求，待用户验收；TODO 无对应条目需要迁移。
