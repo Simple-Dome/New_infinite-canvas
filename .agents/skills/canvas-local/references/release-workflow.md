@@ -4,6 +4,8 @@
 
 ## 1. 任务与源码
 
+先按 [站点入口映射](site-profiles.md#站点入口与源码支持矩阵) 确认触发 skill、`SITE_KEY`、`PUBLIC_DOMAIN` 与 API 上游；入口名称不替换 SSH 目标，也不授予构建或发布权限。
+
 解析顺序为显式 task ID、会话映射、有效 `.agents/state/current-task`、最后使用 `main`。只读对应 `.agents/state/tasks/<task-id>/process.md`。要求“最新”时先刷新 `origin/main` 并记录完整提交 SHA；当前目录有未提交改动时，不把它们静默带入发布。
 
 ```bash

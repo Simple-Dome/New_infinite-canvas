@@ -7,6 +7,10 @@ description: Implemented changes that still need manual verification
 
 The current release needs manual verification in these areas:
 
+- 画布视频保存：生成和继续查询的视频写入本地后应立即结束转圈并显示，元数据延迟或未触发也不能阻塞结果；元数据到达后应更新尺寸和时长，用户已手动调整尺寸或替换视频时不得覆盖。刷新后确认视频仍能播放；本地保存失败时保留原任务以便续查。
+
+- 站点发布 Skill：在仓库中分别调用 `$artworkers`、`$cherry`、`$image-gptch`、`$tovyn`，应选中 `artworkers.online`、`gptch.cloud`、`image.gptch.cloud`、`tovyn.xyz` 的独立 profile；其中子域名的模型 API 仍为 `https://gptch.cloud`。用域名描述 Canvas 发布需求时也应选对入口；仅恢复同名 task 不应自动构建或发布，入口名称不改变 SSH 连接目标。待确认实际会话中的发现和触发，本次只修改 Skill 与文档，不执行构建或生产操作。已检查 TODO，无对应已完成条目需要迁移。
+
 - Artwork profile: build with `docker-compose.artworkers.yml` and verify that all channels use `https://artworkers.online`, the API address is disabled, and old configuration, imported configuration, protocol changes, and URL parameters cannot override it. Check the deployed `/canvas/` routes and confirm real-account image generation separately.
 
 - 生产构建启动：重新构建并发布后，打开 `https://image.gptch.cloud` 应能挂载首页和画布界面，浏览器控制台不应出现 `property-information/*` 模块解析错误；同时确认 Agent 消息中的 Markdown 渲染仍正常。

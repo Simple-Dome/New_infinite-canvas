@@ -10,7 +10,7 @@ import { requestAudioGeneration, storeGeneratedAudio } from "@/services/api/audi
 import { createVideoGenerationTask, isVideoTaskFailed, storeGeneratedVideo, waitForVideoGenerationTask } from "@/services/api/video";
 import { defaultConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { ensureImagePreview, uploadImage } from "@/services/image-storage";
-import { uploadMediaFile, type UploadedFile } from "@/services/file-storage";
+import { readVideoMeta, uploadMediaFile, type UploadedFile } from "@/services/file-storage";
 import { nanoid } from "nanoid";
 import { getDataUrlByteSize, imageFileExtension, readImageMeta } from "@/lib/image-utils";
 import { imageReferenceLabel } from "@/lib/image-reference-prompt";
@@ -315,6 +315,22 @@ function InfiniteCanvasPage() {
         if (request?.controller === controller) generationRequestsRef.current.delete(targetNodeId);
     }, []);
 
+    const showGeneratedVideo = useCallback((nodeId: string, video: UploadedFile, extra: CanvasNodeData["metadata"]) => {
+        const original = nodesRef.current.find((item) => item.id === nodeId);
+        const initialSize = original && fitNodeSize(original.width, original.height, VIDEO_NODE_MAX_WIDTH, VIDEO_NODE_MAX_HEIGHT);
+        setNodes((prev) => prev.map((item) => item.id === nodeId ? applyGeneratedVideo(item, video, extra) : item));
+        void readVideoMeta(video.url).then((meta) => setNodes((prev) => prev.map((item) => {
+            if (item.id !== nodeId || item.metadata?.storageKey !== video.storageKey) return item;
+            const size = initialSize && item.metadata?.status === NODE_STATUS_SUCCESS && item.width === initialSize.width && item.height === initialSize.height
+                ? fitNodeSize(meta.width, meta.height, VIDEO_NODE_MAX_WIDTH, VIDEO_NODE_MAX_HEIGHT) : null;
+            return {
+                ...item,
+                ...(size ? { ...size, position: { x: item.position.x + (item.width - size.width) / 2, y: item.position.y + (item.height - size.height) / 2 } } : {}),
+                metadata: { ...item.metadata, naturalWidth: meta.width, naturalHeight: meta.height, durationMs: meta.durationMs },
+            };
+        })));
+    }, []);
+
     const completeVideoNodeTask = useCallback(
         async (nodeId: string, config: Parameters<typeof buildGenerationConfig>[0], prompt: string, images: Parameters<typeof createVideoGenerationTask>[2], signal: AbortSignal, extra: CanvasNodeData["metadata"] = {}, videos: ReferenceVideo[] = [], audios: ReferenceAudio[] = []) => {
             const onStage = (videoGenerationStage: NonNullable<CanvasNodeData["metadata"]>["videoGenerationStage"]) => setNodes((prev) => prev.map((item) => item.id === nodeId ? { ...item, metadata: { ...item.metadata, videoGenerationStage } } : item));
@@ -324,10 +340,10 @@ function InfiniteCanvasPage() {
             }
             const result = await waitForVideoGenerationTask(config, task, { signal, onStage });
             onStage("saving");
-            const video = await storeGeneratedVideo(result);
-            setNodes((prev) => prev.map((item) => (item.id === nodeId ? applyGeneratedVideo(item, video, { prompt, model: config.model, ...extra }) : item)));
+            const video = await storeGeneratedVideo(result, false);
+            showGeneratedVideo(nodeId, video, { prompt, model: config.model, ...extra });
         },
-        [],
+        [showGeneratedVideo],
     );
 
     const pollVideoNodeTask = useCallback(
@@ -352,24 +368,17 @@ function InfiniteCanvasPage() {
                 const onStage = (videoGenerationStage: NonNullable<CanvasNodeData["metadata"]>["videoGenerationStage"]) => setNodes((prev) => prev.map((item) => item.id === node.id ? { ...item, metadata: { ...item.metadata, videoGenerationStage } } : item));
                 const result = await waitForVideoGenerationTask(generationConfig, { id: taskId, provider: node.metadata?.videoTaskProvider === "gemini" ? "gemini" : "openai", model: generationConfig.model }, { signal: controller.signal, onStage });
                 onStage("saving");
-                const video = await storeGeneratedVideo(result);
-                setNodes((prev) =>
-                    prev.map((item) =>
-                        item.id === node.id
-                            ? applyGeneratedVideo(item, video, {
-                                  prompt: item.metadata?.prompt,
-                                  model: generationConfig.model,
-                                  size: generationConfig.size,
-                                  seconds: generationConfig.videoSeconds,
-                                  vquality: generationConfig.vquality,
-                                  generateAudio: generationConfig.videoGenerateAudio,
-                                  watermark: generationConfig.videoWatermark,
-                                  videoMode: generationConfig.videoMode,
-                                  videoWorkflow: generationConfig.videoWorkflow,
-                              })
-                            : item,
-                    ),
-                );
+                const video = await storeGeneratedVideo(result, false);
+                showGeneratedVideo(node.id, video, {
+                    model: generationConfig.model,
+                    size: generationConfig.size,
+                    seconds: generationConfig.videoSeconds,
+                    vquality: generationConfig.vquality,
+                    generateAudio: generationConfig.videoGenerateAudio,
+                    watermark: generationConfig.videoWatermark,
+                    videoMode: generationConfig.videoMode,
+                    videoWorkflow: generationConfig.videoWorkflow,
+                });
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
                 const errorDetails = error instanceof Error ? error.message : t("canvas.projectPage.generationFailed");
@@ -397,7 +406,7 @@ function InfiniteCanvasPage() {
                 }
             }
         },
-        [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startGenerationRequest, t],
+        [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, showGeneratedVideo, startGenerationRequest, t],
     );
 
     const stopGenerationByRunningId = useCallback((runningId: string) => {

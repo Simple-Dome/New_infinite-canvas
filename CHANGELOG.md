@@ -2,6 +2,10 @@
 
 ## Unreleased
 
++ [修复] 画布视频保存完成后立即显示结果，避免等待视频元数据时一直停在保存状态。
+
++ [新增] 按域名提供 Artwork、GPTCH 主站及子域名、Tovyn 的独立画布发布 Skill 入口，共用本地构建与蓝绿发布流程。
+
 + [新增] Artwork 专用构建配置，将画布渠道固定到 `https://artworkers.online` 并使用本站教程入口。
 
 + [调整] 发布构建改为通过 `VITE_FIXED_API_BASE_URL`、`VITE_DOCS_URL` 和 `VITE_BASE` 按站点生成独立镜像，并统一支持 `/canvas/` 子路径资源、路由和本地插件清单。

@@ -12,14 +12,16 @@
 | 当前镜像运行方式 | Nginx 静态前端，无画布数据卷 |
 | 当前源码公共路径 | `/canvas/` |
 
-## 当前源码支持矩阵
+## 站点入口与源码支持矩阵
 
-| SITE_KEY | 公开发布域名 | API 上游 | 当前状态 |
-| --- | --- | --- | --- |
-| `gptch-cloud` | `gptch.cloud` | `https://gptch.cloud` | 允许进入本地构建 gate |
-| `image-gptch-cloud` | `image.gptch.cloud` | `https://gptch.cloud` | 允许进入本地构建 gate；这是 Canvas 静态前端公开入口，不是 Image API 上游 |
-| `artworkers-online` | `artworkers.online` | `https://artworkers.online` | 允许进入本地构建 gate |
-| `tovyn-xyz` | `tovyn.xyz` | `https://tovyn.xyz` | 允许进入本地构建 gate |
+| 触发 skill | SITE_KEY | 公开发布域名 | API 上游 | 当前状态 |
+| --- | --- | --- | --- | --- |
+| [cherry](../../cherry/SKILL.md) | `gptch-cloud` | `gptch.cloud` | `https://gptch.cloud` | 允许进入本地构建 gate |
+| [image-gptch](../../image-gptch/SKILL.md) | `image-gptch-cloud` | `image.gptch.cloud` | `https://gptch.cloud` | 允许进入本地构建 gate；这是 Canvas 静态前端公开入口，不是 Image API 上游 |
+| [artworkers](../../artworkers/SKILL.md) | `artworkers-online` | `artworkers.online` | `https://artworkers.online` | 允许进入本地构建 gate |
+| [tovyn](../../tovyn/SKILL.md) | `tovyn-xyz` | `tovyn.xyz` | `https://tovyn.xyz` | 允许进入本地构建 gate |
+
+入口名称用于选择站点 skill，不能作为 SSH 目标；连接主机使用上方目标主机配置。明确给出域名时按此表选择入口；只说恢复 task 时先读任务状态，不把 task 名称当成发布请求。
 
 同一提交在每个公开域名必须各自构建独立镜像。`VITE_BASE` 统一为 `/canvas/`；`VITE_FIXED_API_BASE_URL` 按 API 上游 profile 填写，`VITE_DOCS_URL` 按公开站点 profile 单独填写。只有在 HTML、静态资源、Router basename、插件清单和 Nginx `/canvas/` 路由全部通过后，公开站点才算支持。
 
@@ -40,7 +42,7 @@ VITE_DOCS_URL=https://gptch.cloud/docs/image
 | --- | --- | --- | --- | --- |
 | `gptch-cloud` | `gptch.cloud` | `/canvas/` | `https://gptch.cloud` | `https://gptch.cloud/docs/image` |
 | `image-gptch-cloud` | `image.gptch.cloud` | `/canvas/` | `https://gptch.cloud` | `https://gptch.cloud/docs/image` |
-| `artworkers-online` | `artworkers.online` | `/canvas/` | `https://artworkers.online` | `https://artworkers.online/image/manual/index.html` |
+| `artworkers-online` | `artworkers.online` | `/canvas/` | `https://artworkers.online` | `https://artworkers.online/docs/image` |
 | `tovyn-xyz` | `tovyn.xyz` | `/canvas/` | `https://tovyn.xyz` | `https://tovyn.xyz/docs/` |
 
 候选 URL 返回错误、跳转到其他站点或不属于本站文档时，停止该站点构建，不自动回退到默认文档地址。

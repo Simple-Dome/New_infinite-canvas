@@ -151,10 +151,10 @@ function videoPluginResult(result: unknown): VideoGenerationResult {
     throw new Error(apiText("scriptNoVideo"));
 }
 
-export async function storeGeneratedVideo(result: VideoGenerationResult): Promise<UploadedFile> {
-    if (result.blob) return uploadMediaFile(result.blob, "video");
+export async function storeGeneratedVideo(result: VideoGenerationResult, readMetadata = true): Promise<UploadedFile> {
+    if (result.blob) return uploadMediaFile(result.blob, "video", readMetadata);
     if (result.url) {
-        return uploadMediaFile(result.url, "video");
+        return uploadMediaFile(result.url, "video", readMetadata);
     }
     throw new Error(apiText("noPlayableVideo"));
 }

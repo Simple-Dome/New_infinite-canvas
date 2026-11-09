@@ -1,6 +1,6 @@
 ---
 name: canvas-local
-description: 为 New_infinite-canvas 按公开发布域名和独立 API 上游参数检查源码契约，构建并验证本机 linux/amd64 静态前端镜像；支持 gptch.cloud、image.gptch.cloud、artworkers.online 和 tovyn.xyz 的独立 profile，在明确授权后按现场蓝绿拓扑发布到 newapi。用于本项目的本地打包、验收、发布和回滚，不用于 API、Uploads、数据库或其他后端服务。
+description: New_infinite-canvas 画布本地打包、验收、发布和回滚的共用流程，用于明确指定 canvas-local、多站点或尚未选择站点的请求。单站点优先使用 artworkers（artworkers.online）、cherry（gptch.cloud）、image-gptch（image.gptch.cloud）或 tovyn（tovyn.xyz）入口。只处理 Canvas 静态前端，不处理 API、Uploads 或数据库。
 ---
 
 # Canvas Local
@@ -13,6 +13,12 @@ description: 为 New_infinite-canvas 按公开发布域名和独立 API 上游�
 1. 本仓库 `AGENTS.md`；
 2. [references/site-profiles.md](references/site-profiles.md)，确认目标站点和当前源码支持范围；
 3. [references/release-workflow.md](references/release-workflow.md)，按阶段执行。
+
+## 按域名选择 skill
+
+单站点请求从 [站点入口映射](references/site-profiles.md#站点入口与源码支持矩阵) 选择对应 skill，由该入口固定公开域名和 API 上游，再执行本文共用流程。显式调用本 skill 时也按该表选择 profile，不从当前 task ID 或分支名推断站点。
+
+`artworkers`、`cherry` 等是站点 skill 名称，不是 SSH 别名；SSH 仍按目标主机配置核对。仅恢复同名任务不代表要求构建或发布，继续范围以该任务的 `process.md` 和用户指令为准。
 
 ## 当前源码契约
 
