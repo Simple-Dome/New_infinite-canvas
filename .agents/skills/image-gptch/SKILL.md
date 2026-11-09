@@ -11,6 +11,7 @@ description: 为 New_infinite-canvas 的 image.gptch.cloud 画布处理本地打
 
 ```text
 SITE_KEY=image-gptch-cloud
+RELEASE_BRANCH=codex/release-gptch
 PUBLIC_DOMAIN=image.gptch.cloud
 VITE_BASE=/canvas/
 VITE_FIXED_API_BASE_URL=https://gptch.cloud

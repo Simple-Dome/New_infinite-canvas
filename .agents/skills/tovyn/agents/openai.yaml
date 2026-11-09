@@ -1,4 +1,4 @@
 interface:
   display_name: "tovyn · tovyn.xyz"
   short_description: "为 tovyn.xyz 选择独立画布发布参数并复用本机蓝绿流程"
-  default_prompt: "使用 $tovyn 处理 tovyn.xyz 的画布发布工作，固定 API 为 https://tovyn.xyz，按已授权范围执行共用本地构建与蓝绿发布流程。"
+  default_prompt: "使用 $tovyn 处理 tovyn.xyz 的画布发布工作，固定 API 为 https://gptch.cloud，按已授权范围执行共用本地构建与蓝绿发布流程。"

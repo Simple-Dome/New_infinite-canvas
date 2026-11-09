@@ -1,6 +1,6 @@
 ---
 name: tovyn
-description: 为 New_infinite-canvas 的 tovyn.xyz 画布处理本地打包、构建验收、部署或回滚请求。用户指定 Tovyn、tovyn 或 tovyn.xyz 的 Canvas 发布工作时使用；固定本站 API 上游，只处理 Canvas 静态前端。
+description: 为 New_infinite-canvas 的 tovyn.xyz 画布处理本地打包、构建验收、部署或回滚请求。用户指定 Tovyn、tovyn 或 tovyn.xyz 的 Canvas 发布工作时使用；页面域名独立，模型 API 固定为 gptch.cloud，只处理 Canvas 静态前端。
 ---
 
 # Tovyn 画布发布
@@ -11,9 +11,10 @@ description: 为 New_infinite-canvas 的 tovyn.xyz 画布处理本地打包、�
 
 ```text
 SITE_KEY=tovyn-xyz
+RELEASE_BRANCH=codex/release-tovyn
 PUBLIC_DOMAIN=tovyn.xyz
 VITE_BASE=/canvas/
-VITE_FIXED_API_BASE_URL=https://tovyn.xyz
+VITE_FIXED_API_BASE_URL=https://gptch.cloud
 VITE_DOCS_URL=https://tovyn.xyz/docs/
 ```
 

@@ -7,15 +7,17 @@ description: Implemented changes that still need manual verification
 
 The current release needs manual verification in these areas:
 
+- 站点发布基线：Artwork、GPTCH、Tovyn 分别选择 `codex/release-artworkers`、`codex/release-gptch`、`codex/release-tovyn`；`image.gptch.cloud` 共用 GPTCH 代码基线，但仍独立构建和验收。本站“最新”应取对应远端分支 HEAD，不再要求提交属于 `origin/main`；分支缺失或指定提交不在本站分支历史时应停止，不能回退到 main。三条 release 分支已从本次固定的当前源码提交初始化并推送，分支更新与线上发布结果仍需分别记录；本次未构建或部署。已检查 TODO，无对应条目需要迁移。
+
 - 画布视频保存：生成和继续查询的视频写入本地后应立即结束转圈并显示，元数据延迟或未触发也不能阻塞结果；元数据到达后应更新尺寸和时长，用户已手动调整尺寸或替换视频时不得覆盖。刷新后确认视频仍能播放；本地保存失败时保留原任务以便续查。
 
-- 站点发布 Skill：在仓库中分别调用 `$artworkers`、`$cherry`、`$image-gptch`、`$tovyn`，应选中 `artworkers.online`、`gptch.cloud`、`image.gptch.cloud`、`tovyn.xyz` 的独立 profile；其中子域名的模型 API 仍为 `https://gptch.cloud`。用域名描述 Canvas 发布需求时也应选对入口；仅恢复同名 task 不应自动构建或发布，入口名称不改变 SSH 连接目标。待确认实际会话中的发现和触发，本次只修改 Skill 与文档，不执行构建或生产操作。已检查 TODO，无对应已完成条目需要迁移。
+- 站点发布 Skill：在仓库中分别调用 `$artworkers`、`$cherry`、`$image-gptch`、`$tovyn`，应选中 `artworkers.online`、`gptch.cloud`、`image.gptch.cloud`、`tovyn.xyz` 的独立 profile；四个 profile 的模型 API 都必须固定为 `https://gptch.cloud`，公开页面域名只决定入口和独立发布记录。用域名描述 Canvas 发布需求时也应选对入口；仅恢复同名 task 不应自动构建或发布，入口名称不改变 SSH 连接目标。待确认实际会话中的发现和触发，本次只修改 Skill 与文档，不执行构建或生产操作。已检查 TODO，无对应已完成条目需要迁移。
 
-- Artwork profile: build with `docker-compose.artworkers.yml` and verify that all channels use `https://artworkers.online`, the API address is disabled, and old configuration, imported configuration, protocol changes, and URL parameters cannot override it. Check the deployed `/canvas/` routes and confirm real-account image generation separately.
+- Artwork profile: build with `docker-compose.artworkers.yml` and verify that all channels use `https://gptch.cloud`, the API address is disabled, and old configuration, imported configuration, protocol changes, and URL parameters cannot override it. Check the deployed `/canvas/` routes and confirm real-account image generation separately.
 
 - 生产构建启动：重新构建并发布后，打开 `https://image.gptch.cloud` 应能挂载首页和画布界面，浏览器控制台不应出现 `property-information/*` 模块解析错误；同时确认 Agent 消息中的 Markdown 渲染仍正常。
 
-- 多站点发布参数：分别使用 `VITE_BASE=/canvas/`、对应的 `VITE_DOCS_URL` 和独立镜像完成各站点验收；其中 `image.gptch.cloud` 必须使用 `VITE_FIXED_API_BASE_URL=https://gptch.cloud`，页面公开域名与固定 API 上游不能互换，其他站点按 profile 使用自己的 API 上游。打开 `/canvas/`、`/canvas/image`、`/canvas/config` 及一个 `/canvas/canvas/:id` 深层路由时，HTML、JS、CSS、Logo、`config.js` 和本地插件清单均应从 `/canvas/` 加载且无 404 或 HTML fallback。每个镜像的渠道设置、协议切换、旧配置恢复、配置导入和 URL 参数都应保持构建时指定的 API 地址且输入框不可编辑，实际模型请求不得发往其他域名。
+- 多站点发布参数：分别使用 `VITE_BASE=/canvas/`、对应的 `VITE_DOCS_URL`、固定的 `VITE_FIXED_API_BASE_URL=https://gptch.cloud` 和独立镜像完成各站点验收；页面公开域名与固定 API 上游不能互换。打开 `/canvas/`、`/canvas/image`、`/canvas/config` 及一个 `/canvas/canvas/:id` 深层路由时，HTML、JS、CSS、Logo、`config.js` 和本地插件清单均应从 `/canvas/` 加载且无 404 或 HTML fallback。每个镜像的渠道设置、协议切换、旧配置恢复、配置导入和 URL 参数都应保持 `https://gptch.cloud` 且输入框不可编辑，实际模型请求不得发往其他域名。
 
 - Page and canvas header visibility: Agent, documentation, version, and GitHub actions should be hidden on the canvas list and other pages. The plugin, documentation, version, GitHub, and right-side Agent actions inside the canvas should remain hidden without leaving a separator or empty space; settings, language, theme, and shortcuts should remain available. Existing implementations are retained, and setting `CANVAS_EXTRA_ACTIONS_VISIBLE` to `true` should restore the hidden actions.
 

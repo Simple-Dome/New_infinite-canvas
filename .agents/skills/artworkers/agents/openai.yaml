@@ -1,4 +1,4 @@
 interface:
   display_name: "artworkers · artworkers.online"
   short_description: "为 artworkers.online 选择画布发布参数并复用本机蓝绿流程"
-  default_prompt: "使用 $artworkers 处理 artworkers.online 的画布发布工作，固定 API 为 https://artworkers.online，按已授权范围执行共用本地构建与蓝绿发布流程。"
+  default_prompt: "使用 $artworkers 处理 artworkers.online 的画布发布工作，固定 API 为 https://gptch.cloud，按已授权范围执行共用本地构建与蓝绿发布流程。"
