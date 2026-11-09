@@ -38,6 +38,14 @@ docker build --build-arg VITE_BASE=/canvas/ \
   -t infinite-canvas:site .
 ```
 
+Artwork 使用独立构建配置，固定 API 为 `https://artworkers.online`，文档入口为 `https://artworkers.online/docs/image`：
+
+```bash
+docker compose -f docker-compose.artworkers.yml build
+```
+
+该命令只在本机构建本站镜像；生产蓝绿发布使用经过验收的镜像归档。
+
 ## 文档站镜像
 
 文档站位于 `docs/` 目录，按带服务端能力的 Next.js standalone 应用单独构建，不打进主应用镜像。

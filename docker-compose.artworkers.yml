@@ -1,0 +1,10 @@
+services:
+  app:
+    image: infinite-canvas:artworkers-online
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_BASE: /canvas/
+        VITE_FIXED_API_BASE_URL: https://artworkers.online
+        VITE_DOCS_URL: https://artworkers.online/docs/image

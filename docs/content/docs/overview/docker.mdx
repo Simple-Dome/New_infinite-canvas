@@ -30,6 +30,14 @@ docker build --build-arg VITE_BASE=/canvas/ \
   -t infinite-canvas:site .
 ```
 
+Build the Artwork image locally with its dedicated profile, which fixes the API to `https://artworkers.online` and documentation to `https://artworkers.online/docs/image`:
+
+```bash
+docker compose -f docker-compose.artworkers.yml build
+```
+
+Production Blue/Green deployment uses the verified image archive from this local build.
+
 ## Documentation image
 
 The documentation in `docs/` is a separate Next.js standalone application with server capabilities.

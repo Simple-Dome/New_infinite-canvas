@@ -2,6 +2,8 @@
 
 ## Unreleased
 
++ [新增] Artwork 专用构建配置，将画布渠道固定到 `https://artworkers.online` 并使用本站教程入口。
+
 + [调整] 发布构建改为通过 `VITE_FIXED_API_BASE_URL`、`VITE_DOCS_URL` 和 `VITE_BASE` 按站点生成独立镜像，并统一支持 `/canvas/` 子路径资源、路由和本地插件清单。
 
 + [修复] 修复 Streamdown 的 `property-information` 依赖被错误提升后导致生产构建保留浏览器无法解析的裸模块、页面启动黑屏的问题。

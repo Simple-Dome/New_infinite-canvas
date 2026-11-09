@@ -5,6 +5,8 @@ description: 当前版本已实现但仍需人工验证的变更项
 
 # 待测试
 
+- Artwork 专用配置：使用 `docker-compose.artworkers.yml` 构建，确认所有渠道均固定请求 `https://artworkers.online`、接口地址不可编辑，旧配置、配置导入、协议切换和 URL 参数均不能覆盖；验收线上 `/canvas/` 路由后，另行确认真实账户生图流程。
+
 - 多站点发布参数：分别按 profile 传入 `VITE_BASE=/canvas/`、`VITE_FIXED_API_BASE_URL` 和对应的 `VITE_DOCS_URL` 构建独立镜像；其中发布到 `image.gptch.cloud` 时，公开域名必须是 `image.gptch.cloud`，固定 API 地址必须仍为 `https://gptch.cloud`，不能互换，其他站点使用各自 profile 的 API 上游。打开 `/canvas/`、`/canvas/image`、`/canvas/config` 和一个 `/canvas/canvas/:id` 深层路由时，HTML、JS、CSS、Logo、`config.js` 和本地插件清单都应从 `/canvas/` 加载，不能出现 404 或 HTML fallback。每个镜像的渠道设置、协议切换、旧配置恢复、配置导入和 URL 参数都应保持构建时指定的 API 地址且输入框不可编辑，实际模型请求不得发往其他域名。
 
 - 页面与画布顶部入口隐藏：画布列表等页面的 Agent、文档、版本号和 GitHub 入口应隐藏；画布内的插件、文档、版本号、GitHub 和右侧 Agent 按钮继续隐藏，且不留下分隔线或空白占位；设置、语言、主题和快捷键入口应保留。原实现不删除，将 `CANVAS_EXTRA_ACTIONS_VISIBLE` 改为 `true` 后应恢复隐藏入口。
