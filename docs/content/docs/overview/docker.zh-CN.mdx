@@ -18,7 +18,7 @@ docker compose up -d
 启动后访问：
 
 ```text
-http://localhost:3000
+http://localhost:3000/canvas/
 ```
 
 ## 本地构建镜像
@@ -27,6 +27,15 @@ http://localhost:3000
 
 ```bash
 docker compose -f docker-compose.local.yml up -d --build
+```
+
+主应用默认构建在 `/canvas/` 子路径下。不同站点必须分别构建独立镜像，并显式传入三个构建参数：
+
+```bash
+docker build --build-arg VITE_BASE=/canvas/ \
+  --build-arg VITE_FIXED_API_BASE_URL=https://your-site.example \
+  --build-arg VITE_DOCS_URL=https://your-site.example/docs/ \
+  -t infinite-canvas:site .
 ```
 
 ## 文档站镜像
@@ -49,7 +58,7 @@ docker compose -f docker-compose.local.yml up -d --build
 
 ## 数据说明
 
-当前主应用镜像只启动 Next.js。画布、我的素材、生成记录和 AI API Key 默认保存在浏览器本地；第三方提示词由浏览器前端直连拉取，不需要额外挂载数据目录。
+当前主应用镜像只启动 Nginx 静态前端。画布、我的素材、生成记录和 AI API Key 默认保存在浏览器本地；第三方提示词由浏览器前端直连拉取，不需要额外挂载数据目录。
 
 ## 统计分析（可选）
 

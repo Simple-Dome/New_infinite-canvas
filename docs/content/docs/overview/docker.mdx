@@ -13,12 +13,21 @@ cd infinite-canvas
 docker compose up -d
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000/canvas/`.
 
 ## Build locally
 
 ```bash
 docker compose -f docker-compose.local.yml up -d --build
+```
+
+The published frontend is built under `/canvas/`. For a site-specific image, pass the three build arguments explicitly and build a separate image for each site:
+
+```bash
+docker build --build-arg VITE_BASE=/canvas/ \
+  --build-arg VITE_FIXED_API_BASE_URL=https://your-site.example \
+  --build-arg VITE_DOCS_URL=https://your-site.example/docs/ \
+  -t infinite-canvas:site .
 ```
 
 ## Documentation image
@@ -37,7 +46,7 @@ cd docs
 docker compose -f docker-compose.local.yml up -d --build
 ```
 
-The main application container only runs Next.js. Canvases, My Assets, generation history, and API keys are stored in the browser by default, while prompt repositories are fetched directly by the frontend. No persistent data volume is required for this data.
+The main application container only runs the static Nginx frontend. Canvases, My Assets, generation history, and API keys are stored in the browser by default, while prompt repositories are fetched directly by the frontend. No persistent data volume is required for this data.
 
 ## Optional analytics
 

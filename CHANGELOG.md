@@ -2,9 +2,9 @@
 
 ## Unreleased
 
-+ [修复] 修复 Streamdown 的 `property-information` 依赖被错误提升后导致生产构建保留浏览器无法解析的裸模块、页面启动黑屏的问题。
++ [调整] 发布构建改为通过 `VITE_FIXED_API_BASE_URL`、`VITE_DOCS_URL` 和 `VITE_BASE` 按站点生成独立镜像，并统一支持 `/canvas/` 子路径资源、路由和本地插件清单。
 
-+ [调整] GPTCH 发布版将所有模型渠道固定到 `https://gptch.cloud`，渠道地址输入框、旧配置恢复、配置导入和 URL 参数均不能改写该地址。
++ [修复] 修复 Streamdown 的 `property-information` 依赖被错误提升后导致生产构建保留浏览器无法解析的裸模块、页面启动黑屏的问题。
 
 + [调整] 暂时隐藏页面与画布顶部的插件、文档、版本号、GitHub 和 Agent 入口，保留实现以便后续恢复。
 

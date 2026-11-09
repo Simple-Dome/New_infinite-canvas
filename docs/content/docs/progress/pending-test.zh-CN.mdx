@@ -5,6 +5,8 @@ description: 当前版本已实现但仍需人工验证的变更项
 
 # 待测试
 
+- 多站点发布参数：分别按 profile 传入 `VITE_BASE=/canvas/`、`VITE_FIXED_API_BASE_URL` 和对应的 `VITE_DOCS_URL` 构建独立镜像；其中发布到 `image.gptch.cloud` 时，公开域名必须是 `image.gptch.cloud`，固定 API 地址必须仍为 `https://gptch.cloud`，不能互换，其他站点使用各自 profile 的 API 上游。打开 `/canvas/`、`/canvas/image`、`/canvas/config` 和一个 `/canvas/canvas/:id` 深层路由时，HTML、JS、CSS、Logo、`config.js` 和本地插件清单都应从 `/canvas/` 加载，不能出现 404 或 HTML fallback。每个镜像的渠道设置、协议切换、旧配置恢复、配置导入和 URL 参数都应保持构建时指定的 API 地址且输入框不可编辑，实际模型请求不得发往其他域名。
+
 - 页面与画布顶部入口隐藏：画布列表等页面的 Agent、文档、版本号和 GitHub 入口应隐藏；画布内的插件、文档、版本号、GitHub 和右侧 Agent 按钮继续隐藏，且不留下分隔线或空白占位；设置、语言、主题和快捷键入口应保留。原实现不删除，将 `CANVAS_EXTRA_ACTIONS_VISIBLE` 改为 `true` 后应恢复隐藏入口。
 
 - GPT Image 2.6 动图：在普通画布节点、生成配置节点和图像工作台选择 `gpt-image-2.6`、`gpt-image-2.6-flare`、`gpt-image-2.6-sunburst`，应出现 PNG / GIF 切换。GIF 默认 9 帧、每帧 200 毫秒，帧数范围 2–16，每帧时长范围 20–655350 毫秒并向下按 10 毫秒取整；隐藏质量、宽高、分辨率、比例和透明背景，切回 PNG 应保留此前静态设置。其他模型发送 PNG 且不携带帧参数。检查文生图 JSON 与图生图 multipart 均携带所选帧数、时长，不携带无效静态参数；base64 的 MIME 应以响应 `output_format` 为准，缺失时按本次请求格式处理。刷新、重试、批量展开、切换主图、创建副本、保存素材及项目/素材导出导入后应保留 GIF 原文件，单张、子图和工作台下载均为 `.gif`；画布与工作台结果在存在静态缩略图时仍使用原图播放，列表可显示静态封面。GIF 节点不展示裁剪、分割等静态编辑工具。新插入的 OpenAI 调用脚本模板应传递动图参数；已保存的自定义脚本若忽略这些参数，需手动更新。

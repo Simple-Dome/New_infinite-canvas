@@ -9,7 +9,7 @@ The current release needs manual verification in these areas:
 
 - 生产构建启动：重新构建并发布后，打开 `https://image.gptch.cloud` 应能挂载首页和画布界面，浏览器控制台不应出现 `property-information/*` 模块解析错误；同时确认 Agent 消息中的 Markdown 渲染仍正常。
 
-- GPTCH 渠道地址固定：打开渠道设置、切换协议、导入旧配置或带 `baseUrl` 的 URL 参数后，接口地址都应显示为 `https://gptch.cloud` 且输入框不可编辑；实际请求不得发往其他渠道地址。
+- 多站点发布参数：分别使用 `VITE_BASE=/canvas/`、对应的 `VITE_DOCS_URL` 和独立镜像完成各站点验收；其中 `image.gptch.cloud` 必须使用 `VITE_FIXED_API_BASE_URL=https://gptch.cloud`，页面公开域名与固定 API 上游不能互换，其他站点按 profile 使用自己的 API 上游。打开 `/canvas/`、`/canvas/image`、`/canvas/config` 及一个 `/canvas/canvas/:id` 深层路由时，HTML、JS、CSS、Logo、`config.js` 和本地插件清单均应从 `/canvas/` 加载且无 404 或 HTML fallback。每个镜像的渠道设置、协议切换、旧配置恢复、配置导入和 URL 参数都应保持构建时指定的 API 地址且输入框不可编辑，实际模型请求不得发往其他域名。
 
 - Page and canvas header visibility: Agent, documentation, version, and GitHub actions should be hidden on the canvas list and other pages. The plugin, documentation, version, GitHub, and right-side Agent actions inside the canvas should remain hidden without leaving a separator or empty space; settings, language, theme, and shortcuts should remain available. Existing implementations are retained, and setting `CANVAS_EXTRA_ACTIONS_VISIBLE` to `true` should restore the hidden actions.
 

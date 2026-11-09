@@ -4,6 +4,12 @@ FROM oven/bun:1.3.13 AS web-build
 WORKDIR /app/web
 COPY web/package.json web/bun.lock ./
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --cache-dir=/root/.bun/install/cache
+ARG VITE_BASE=/canvas/
+ENV VITE_BASE=${VITE_BASE}
+ARG VITE_FIXED_API_BASE_URL=
+ENV VITE_FIXED_API_BASE_URL=${VITE_FIXED_API_BASE_URL}
+ARG VITE_DOCS_URL=
+ENV VITE_DOCS_URL=${VITE_DOCS_URL}
 COPY VERSION /app/VERSION
 COPY CHANGELOG.md /app/CHANGELOG.md
 COPY web ./

@@ -36,6 +36,8 @@ docker build -t infinite-canvas .
 docker run --rm -p 3000:3000 infinite-canvas
 ```
 
+Docker 镜像通过 `http://localhost:3000/canvas/` 访问。部署到具体站点时，构建镜像必须传入 `VITE_BASE`、`VITE_FIXED_API_BASE_URL` 和 `VITE_DOCS_URL`，每个域名分别构建独立镜像。
+
 ## 首次使用建议
 
 - 先打开右上角配置弹窗，填入自己的 `Base URL`、`API Key` 和模型名。
