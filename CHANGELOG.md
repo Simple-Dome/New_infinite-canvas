@@ -2,6 +2,8 @@
 
 ## Unreleased
 
++ [调整] 调用画布站点 Skill 时自动进入对应 release 分支，并保留未提交改动与本地提交。
+
 + [调整] 画布发布按 Artwork、GPTCH、Tovyn 的独立 release 分支选择源码基线，并按域名分别记录线上版本。
 
 + [调整] 所有画布站点的固定模型 API 统一为 `https://gptch.cloud`，公开页面域名与 API 基线解耦。

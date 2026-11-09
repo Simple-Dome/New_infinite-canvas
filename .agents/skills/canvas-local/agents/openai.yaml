@@ -1,4 +1,4 @@
 interface:
   display_name: "画布本地发布"
   short_description: "按站点参数构建验证 New_infinite-canvas 的 linux/amd64 镜像"
-  default_prompt: "使用 $canvas-local 处理 New_infinite-canvas 多站点画布发布，先按域名选择 artworkers、cherry、image-gptch 或 tovyn 入口及独立 profile，再按用户授权范围执行本地构建、验收或蓝绿发布。"
+  default_prompt: "使用 $canvas-local 处理 New_infinite-canvas 多站点画布发布，先按域名选择 artworkers、cherry、image-gptch 或 tovyn 入口及独立 profile，自动切到对应 release 分支，再按用户授权范围执行本地构建、验收或蓝绿发布。"

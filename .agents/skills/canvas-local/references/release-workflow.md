@@ -6,14 +6,23 @@
 
 先按 [站点入口映射](site-profiles.md#站点入口与源码支持矩阵) 确认触发 skill、`SITE_KEY`、`PUBLIC_DOMAIN`、`RELEASE_BRANCH` 与 API 上游；入口名称不替换 SSH 目标，也不授予构建或发布权限。
 
-解析顺序为显式 task ID、会话映射、有效 `.agents/state/current-task`、最后使用 `main`。只读对应 `.agents/state/tasks/<task-id>/process.md`。当前目录有未提交改动时，不把它们静默带入发布，也不切换或重置用户工作区。
+解析顺序为显式 task ID、会话映射、有效 `.agents/state/current-task`、最后使用 `main`。只读对应 `.agents/state/tasks/<task-id>/process.md`。
+
+### 调用时切换分支
+
+调用站点入口，或由 `canvas-local` 选定公开域名后，先自动进入对应的本地 `$RELEASE_BRANCH`，不等到构建时才选择源码；正常切换无需再次确认。仅恢复同名 task 时，仍先按 `process.md` 判断当前任务，不把 task 名称当成站点选择。
+
+1. 记录当前分支，检查 `git status --short` 和 `git worktree list --porcelain`。存在未提交源码、文档改动或可能被目标分支覆盖的未跟踪文件时，保留现场并停止切换，说明具体文件；不自动 stash、提交、清理或强制覆盖。仅有任务状态、发布产物和浏览器验收目录等本机数据，且与目标分支文件无冲突时，可以保留它们切换。
+2. 用 `git fetch origin "refs/heads/$RELEASE_BRANCH:refs/remotes/origin/$RELEASE_BRANCH"` 刷新目标远端引用。分支不存在或 fetch 失败时停止，不回退到 `main`，不自动创建远端分支。
+3. 本地分支不存在时执行 `git switch --track -c "$RELEASE_BRANCH" "origin/$RELEASE_BRANCH"`；已存在时先比较本地与远端提交。相同则直接 `git switch "$RELEASE_BRANCH"`；仅落后时切换后用 `git merge --ff-only "origin/$RELEASE_BRANCH"` 快进；仅领先时允许切换并报告、保留本地提交，发布前再按授权同步到远端。已经分叉或被其他 worktree 占用时停止并说明差异或占用路径，不使用 reset、force 或忽略 worktree 占用的选项。
+4. 核对 `git branch --show-current` 为 `$RELEASE_BRANCH`，记录本地与远端完整 SHA，并重新读取目标分支的 `AGENTS.md` 和相关 Skill。task 绑定及原任务 `process.md` 路径保持不变。切分支本身不附带推送、构建或生产发布。
 
 ### 维护 release 分支
 
 - `main` 是通用开发基线，本站 release 分支是发布源码入口。要求“本站最新”时刷新对应远端 release 分支；要求“带上 main 最新改动”时，先审阅差异并同步到本站 release 分支，再取其完整 HEAD 构建。不自动发布其他站点。
 - 首次初始化时，先核对本地与远端分支是否存在。从可验证的本站线上发布 source SHA，或用户明确指定的候选 SHA 创建分支；缺少依据时说明候选及差异后确认，不把当前工作分支或 `main` 直接冒充本站线上基线。已存在的分支沿用其历史，不覆盖、reset 或 force-push。
 - 在独立工作区审阅并同步所需改动，保留站点专用提交；同步后先提交、按授权推送，再发布已刷新远端分支中的精确 SHA。通用修复优先在 `main` 开发；本站紧急修复后续只提取通用部分回到 `main`，合入 `main` 仍遵循仓库的明确确认规则。
-- 本地分支领先、落后或分叉都要先说明差异并处理，不能静默使用旧的远端提交代替用户期望的版本。创建或推送分支、部署分别按用户实际授权执行；仅修改 skill 时不执行这些动作。
+- 本地分支领先、落后或分叉时按上方切换规则处理，不能静默使用旧的远端提交代替用户期望的版本。调用入口允许从已有远端创建本地跟踪分支；首次建立远端基线、推送和部署分别按用户实际授权执行，仅修改 Skill 不附带这些动作。
 
 ### 选择发布提交
 

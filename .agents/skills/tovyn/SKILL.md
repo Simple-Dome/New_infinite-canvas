@@ -7,6 +7,8 @@ description: 为 New_infinite-canvas 的 tovyn.xyz 画布处理本地打包、�
 
 先读仓库 `AGENTS.md`，再读 [共用发布流程](../canvas-local/SKILL.md) 及其站点、执行说明，按用户已授权范围推进。
 
+调用本 Skill 时先按共用流程自动切到 `codex/release-tovyn`，再继续本站任务；保留未提交改动，Git 分支切换不改变 task 绑定。
+
 本入口固定：
 
 ```text

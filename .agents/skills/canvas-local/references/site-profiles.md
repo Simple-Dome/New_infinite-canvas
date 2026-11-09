@@ -21,7 +21,7 @@
 | [artworkers](../../artworkers/SKILL.md) | `artworkers-online` | `artworkers.online` | `https://gptch.cloud` | `codex/release-artworkers` |
 | [tovyn](../../tovyn/SKILL.md) | `tovyn-xyz` | `tovyn.xyz` | `https://gptch.cloud` | `codex/release-tovyn` |
 
-入口名称用于选择站点 skill，不能作为 SSH 目标；连接主机使用上方目标主机配置。明确给出域名时按此表选择入口；只说恢复 task 时先读任务状态，不把 task 名称当成发布请求。
+入口名称用于选择站点 skill，不能作为 SSH 目标；连接主机使用上方目标主机配置。明确给出域名时按此表选择入口，并按 [调用时切换分支](release-workflow.md#调用时切换分支) 自动切到表中的本地 release 分支；`cherry` 和 `image-gptch` 都进入 `codex/release-gptch`。只说恢复 task 时先读任务状态，不把 task 名称当成发布请求。
 
 上表约定三条代码基线，不表示这些 Git 分支已经创建或已部署。`main` 是通用开发基线；发布前先确认对应远端 release 分支存在，再按其精确提交进入源码 gate。三个 Canvas profile 的模型 API 都固定为 `https://gptch.cloud`，公开域名只决定页面入口和独立发布记录。GPTCH 两个公开域名共用代码分支，更新或发布其中一个域名不自动更新另一个域名。
 

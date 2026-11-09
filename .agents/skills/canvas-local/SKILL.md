@@ -16,7 +16,7 @@ description: New_infinite-canvas 画布本地打包、验收、发布和回滚�
 
 ## 按域名选择 skill
 
-单站点请求从 [站点入口映射](references/site-profiles.md#站点入口与源码支持矩阵) 选择对应 skill，由该入口固定公开域名和 API 上游，再执行本文共用流程。显式调用本 skill 时也按该表选择 profile，不从当前 task ID 或分支名推断站点。
+单站点请求从 [站点入口映射](references/site-profiles.md#站点入口与源码支持矩阵) 选择对应 skill，由该入口固定公开域名和 API 上游，先按 [调用时切换分支](references/release-workflow.md#调用时切换分支) 自动进入对应的本地 release 分支，再继续任务。正常切换无需再次确认。显式调用本 skill 时也按该表选择 profile，不从当前 task ID 或分支名推断站点；多站点任务按站逐一进入对应分支。
 
 `artworkers`、`cherry` 等是站点 skill 名称，不是 SSH 别名；SSH 仍按目标主机配置核对。仅恢复同名任务不代表要求构建或发布，继续范围以该任务的 `process.md` 和用户指令为准。
 
@@ -51,7 +51,7 @@ description: New_infinite-canvas 画布本地打包、验收、发布和回滚�
 
 ## 发布顺序
 
-1. 解析 task ID，恢复 `.agents/state/tasks/<task-id>/process.md`，按域名选择 release 分支，记录分支远端 HEAD、源码完整 SHA、公共路径、动作范围和验收条件。
+1. 解析 task ID，恢复 `.agents/state/tasks/<task-id>/process.md`，按域名自动切到对应 release 分支，记录切换前后分支、分支远端 HEAD、源码完整 SHA、公共路径、动作范围和验收条件；Git 分支切换不改变 task 绑定。
 2. 在干净 detached worktree 中归档精确提交；当前未提交修改不自动进入镜像。
 3. 运行源码契约 gate，确认目标域名和路径与当前代码实际消费的值一致；不满足就停止在本地准备阶段。
 4. 仅在本机 Docker daemon 和 Buildx endpoint 均确认后，执行 `linux/amd64 --load` 构建并记录 image ID、平台、归档大小和 SHA-256。

@@ -7,6 +7,8 @@ description: Implemented changes that still need manual verification
 
 The current release needs manual verification in these areas:
 
+- 站点 Skill 自动切分支：调用 `$artworkers` 应进入 `codex/release-artworkers`，`$cherry` 与 `$image-gptch` 应进入 `codex/release-gptch`，`$tovyn` 应进入 `codex/release-tovyn`；`$canvas-local` 按选定域名执行同样规则。应先刷新远端分支，本地缺失时从远端创建跟踪分支，仅落后时自动快进，仅领先时保留提交并说明；未提交源码或文档、可能被覆盖的未跟踪文件、分叉、worktree 占用或远端分支缺失时应保留现场并停止对应切换。任务状态和发布产物等无冲突本机目录应保留，task 绑定不变，切换不附带推送、构建或部署。本次已实际从 `codex/artworkers` 切到同一提交的 `codex/release-artworkers`，其余分支和异常场景待会话验证；TODO 无对应条目需要迁移。
+
 - 站点发布基线：Artwork、GPTCH、Tovyn 分别选择 `codex/release-artworkers`、`codex/release-gptch`、`codex/release-tovyn`；`image.gptch.cloud` 共用 GPTCH 代码基线，但仍独立构建和验收。本站“最新”应取对应远端分支 HEAD，不再要求提交属于 `origin/main`；分支缺失或指定提交不在本站分支历史时应停止，不能回退到 main。三条 release 分支已从本次固定的当前源码提交初始化并推送，分支更新与线上发布结果仍需分别记录；本次未构建或部署。已检查 TODO，无对应条目需要迁移。
 
 - 画布视频保存：生成和继续查询的视频写入本地后应立即结束转圈并显示，元数据延迟或未触发也不能阻塞结果；元数据到达后应更新尺寸和时长，用户已手动调整尺寸或替换视频时不得覆盖。刷新后确认视频仍能播放；本地保存失败时保留原任务以便续查。
