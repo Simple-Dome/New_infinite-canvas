@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { navigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
-import { CANVAS_EXTRA_ACTIONS_VISIBLE } from "@/constant/env";
+import { CANVAS_EXTRA_ACTIONS_VISIBLE, SITE_BRAND } from "@/constant/env";
 import { AppConfigModal } from "@/components/layout/app-config-modal";
 import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 import { UserStatusActions } from "@/components/layout/user-status-actions";
@@ -47,7 +47,7 @@ export function AppTopNav() {
                                         WebkitMask: `url(${import.meta.env.BASE_URL}logo.svg) center / contain no-repeat`,
                                     }}
                                 />
-                                <span className="text-base font-medium">{t("meta.title")}</span>
+                                <span className="text-base font-medium">{SITE_BRAND}</span>
                             </Link>
 
                             <button

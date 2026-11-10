@@ -30,7 +30,7 @@ docker build --build-arg VITE_BASE=/canvas/ \
   -t infinite-canvas:site .
 ```
 
-Build the Artwork image locally with its dedicated profile, which serves the page on `artworkers.online`, fixes the model API to `https://gptch.cloud`, and uses `https://artworkers.online/docs/image` for documentation:
+Build the Artwork image locally with its dedicated profile, which serves the page on `artworkers.online`, brands the page as `artworkers`, fixes the model API to `https://artworkers.online`, and uses `https://artworkers.online/docs/image` for documentation:
 
 ```bash
 docker compose -f docker-compose.artworkers.yml build

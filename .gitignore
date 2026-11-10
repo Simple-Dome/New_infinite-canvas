@@ -14,4 +14,12 @@ web/dist
 web/public/plugins
 plugins/canvas/*/dist
 plugins/canvas/*/node_modules
+
+# 本机任务状态、发布产物和验收临时文件。
+.agents/state/
+.agents/release-artifacts/
+.agents/release-worktrees/
+.playwright-cli/
+.skill2loop-store/
+output/playwright/
 web/public/plugins

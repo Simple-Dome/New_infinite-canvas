@@ -1,4 +1,4 @@
 interface:
   display_name: "image-gptch · image.gptch.cloud"
   short_description: "为 image.gptch.cloud 发布画布并保持主站模型 API 上游"
-  default_prompt: "使用 $image-gptch 处理 image.gptch.cloud 的画布发布工作，先自动切到 codex/release-gptch，保持模型 API 为 https://gptch.cloud，按已授权范围执行共用本地构建与蓝绿发布流程。"
+  default_prompt: "使用 $image-gptch 处理 image.gptch.cloud 的画布发布工作，先自动切到 codex/release-gptch，固定品牌为 image、模型 API 为 https://gptch.cloud，按已授权范围执行共用本地构建与蓝绿发布流程。"

@@ -5,13 +5,17 @@ description: 当前版本已实现但仍需人工验证的变更项
 
 # 待测试
 
+- 画布发布流程：按原会话复核旧事务复用、构建失败继续执行、候选色拓扑漂移、固定顺序回滚和过时源码 gate 五类问题。后续发布需确认 UTC 时间加 UUID 的唯一目录可在 macOS 创建、跨阶段缺参和归档冲突会停止、构建失败不会传输旧镜像；产物清单保持只读，生产计划在锁内冻结，容器操作先记意图再记结果，回滚按真实变更的逆序保留健康流量；源码 gate 以精确提交为准。已完成规则静态审阅，尚未执行新的构建、故障演练或生产发布；TODO 无对应条目需要迁移。
+
 - 站点 Skill 自动切分支：`$artworkers` 进入 `codex/release-artworkers`，`$cherry` 与 `$image-gptch` 进入 `codex/release-gptch`，`$tovyn` 进入 `codex/release-tovyn`，`$canvas-local` 按选定域名执行。应先刷新远端；本地缺失时创建跟踪分支，仅落后时快进，仅领先时保留提交并说明。未提交源码或文档、可能被覆盖的未跟踪文件、分叉、worktree 占用或远端分支缺失时应保留现场并停止对应切换；无冲突的本机状态和产物目录保留，task 绑定不变，切换不附带推送、构建或部署。本次已实际从 `codex/artworkers` 切到同一提交的 `codex/release-artworkers`，其余分支和异常场景待会话验证；TODO 无对应条目需要迁移。
 
 - 站点发布基线：Artwork、GPTCH、Tovyn 已分别初始化并推送 `codex/release-artworkers`、`codex/release-gptch`、`codex/release-tovyn`；`image.gptch.cloud` 共用 GPTCH 代码基线，但仍独立构建和验收。后续“本站最新”只取对应 release 分支 HEAD，分支更新与线上发布结果分别记录。本次未构建或部署。
 
-- Artwork 专用配置：使用 `docker-compose.artworkers.yml` 构建，确认页面发布到 Artwork 域名但所有渠道均固定请求 `https://gptch.cloud`、接口地址不可编辑，旧配置、配置导入、协议切换和 URL 参数均不能覆盖；验收线上 `/canvas/` 路由后，另行确认真实账户生图流程。
+- Artwork 专用配置：使用 `docker-compose.artworkers.yml` 构建，确认页面发布到 Artwork 域名且所有渠道均固定请求 `https://artworkers.online`、接口地址不可编辑，旧配置、配置导入、协议切换和 URL 参数均不能覆盖，实际模型列表请求必须发往 `https://artworkers.online/v1/models`；验收线上 `/canvas/` 路由后，另行确认真实账户生图流程。
 
-- 多站点发布参数：分别按 profile 传入 `VITE_BASE=/canvas/`、固定的 `VITE_FIXED_API_BASE_URL=https://gptch.cloud` 和对应的 `VITE_DOCS_URL` 构建独立镜像；公开域名只决定页面入口，不能替换固定 API。打开 `/canvas/`、`/canvas/image`、`/canvas/config` 和一个 `/canvas/canvas/:id` 深层路由时，HTML、JS、CSS、Logo、`config.js` 和本地插件清单都应从 `/canvas/` 加载，不能出现 404 或 HTML fallback。每个镜像的渠道设置、协议切换、旧配置恢复、配置导入和 URL 参数都应保持 `https://gptch.cloud` 且输入框不可编辑，实际模型请求不得发往其他域名。
+- 多站点发布参数：分别按 profile 传入 `VITE_BASE=/canvas/`、本站的 `VITE_FIXED_API_BASE_URL` 和对应的 `VITE_DOCS_URL` 构建独立镜像；Artwork 固定为 `https://artworkers.online`，其余 profile 为 `https://gptch.cloud`。验收预期应先与用户指定的站点核对，再与构建参数和实际请求比对。打开 `/canvas/`、`/canvas/image`、`/canvas/config` 和一个 `/canvas/canvas/:id` 深层路由时，HTML、JS、CSS、Logo、`config.js` 和本地插件清单都应从 `/canvas/` 加载，不能出现 404 或 HTML fallback。每个镜像的渠道设置、协议切换、旧配置恢复、配置导入和 URL 参数都应保持本站固定 API 且输入框不可编辑，实际模型请求必须与本站 profile 一致。
+
+- 站点品牌验收：构建参数增加 `VITE_SITE_BRAND`；`artworkers.online` 的品牌为 `artworkers`，`gptch.cloud` 的品牌例外为 `cherry`，`image.gptch.cloud` 为 `image`，`tovyn.xyz` 为 `tovyn`。浏览器必须确认 `document.title`、首页主标题和顶部导航都显示对应品牌；`meta.title` 等未解析 key、空标题或品牌与域名前缀不一致时应阻断发布。
 
 - 页面与画布顶部入口隐藏：画布列表等页面的 Agent、文档、版本号和 GitHub 入口应隐藏；画布内的插件、文档、版本号、GitHub 和右侧 Agent 按钮继续隐藏，且不留下分隔线或空白占位；设置、语言、主题和快捷键入口应保留。原实现不删除，将 `CANVAS_EXTRA_ACTIONS_VISIBLE` 改为 `true` 后应恢复隐藏入口。
 

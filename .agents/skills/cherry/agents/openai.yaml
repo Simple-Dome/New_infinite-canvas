@@ -1,4 +1,4 @@
 interface:
   display_name: "cherry · gptch.cloud"
   short_description: "为 gptch.cloud 主域名选择画布发布参数并复用本机蓝绿流程"
-  default_prompt: "使用 $cherry 处理 gptch.cloud 的画布发布工作，先自动切到 codex/release-gptch，固定 API 为 https://gptch.cloud，按已授权范围执行共用本地构建与蓝绿发布流程。"
+  default_prompt: "使用 $cherry 处理 gptch.cloud 的画布发布工作，先自动切到 codex/release-gptch，固定品牌为 cherry、API 为 https://gptch.cloud，按已授权范围执行共用本地构建与蓝绿发布流程。"

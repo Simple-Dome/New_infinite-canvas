@@ -1,6 +1,6 @@
 ---
 name: artworkers
-description: 为 New_infinite-canvas 的 artworkers.online 画布处理本地打包、构建验收、部署或回滚请求。用户指定 Artwork、artworkers 或 artworkers.online 的 Canvas 发布工作时使用；页面域名独立，模型 API 固定为 gptch.cloud，只处理 Canvas 静态前端。
+description: 为 New_infinite-canvas 的 artworkers.online 画布处理本地打包、构建验收、部署或回滚请求。用户指定 Artwork、artworkers 或 artworkers.online 的 Canvas 发布工作时使用；页面和模型 API 均固定为 artworkers.online，只处理 Canvas 静态前端。
 ---
 
 # Artwork 画布发布
@@ -15,8 +15,9 @@ description: 为 New_infinite-canvas 的 artworkers.online 画布处理本地打
 SITE_KEY=artworkers-online
 RELEASE_BRANCH=codex/release-artworkers
 PUBLIC_DOMAIN=artworkers.online
+VITE_SITE_BRAND=artworkers
 VITE_BASE=/canvas/
-VITE_FIXED_API_BASE_URL=https://gptch.cloud
+VITE_FIXED_API_BASE_URL=https://artworkers.online
 VITE_DOCS_URL=https://artworkers.online/docs/image
 ```
 

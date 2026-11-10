@@ -38,7 +38,7 @@ docker build --build-arg VITE_BASE=/canvas/ \
   -t infinite-canvas:site .
 ```
 
-Artwork 使用独立构建配置，页面发布到 `artworkers.online`，模型 API 固定为 `https://gptch.cloud`，文档入口为 `https://artworkers.online/docs/image`：
+Artwork 使用独立构建配置，页面发布到 `artworkers.online`，页面品牌固定为 `artworkers`，模型 API 固定为 `https://artworkers.online`，文档入口为 `https://artworkers.online/docs/image`：
 
 ```bash
 docker compose -f docker-compose.artworkers.yml build

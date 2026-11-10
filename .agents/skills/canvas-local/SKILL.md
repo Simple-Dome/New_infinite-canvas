@@ -22,7 +22,7 @@ description: New_infinite-canvas 画布本地打包、验收、发布和回滚�
 
 ## 站点发布基线
 
-- `main` 维护通用功能；Artwork、GPTCH、Tovyn 分别使用 [站点表](references/site-profiles.md#站点入口与源码支持矩阵) 中的三条长期 release 分支。分支按 Canvas 公开站点维护代码基线；所有 Canvas profile 的模型 API 都固定为 `https://gptch.cloud`，不随公开页面域名变化。`image.gptch.cloud` 与 `gptch.cloud` 共用 GPTCH 代码基线，但这只是公开入口与代码基线的关系，不是固定 API 的依据；两个 profile 仍保留独立镜像、发布和验收记录。
+- `main` 维护通用功能；Artwork、GPTCH、Tovyn 分别使用 [站点表](references/site-profiles.md#站点入口与源码支持矩阵) 中的三条长期 release 分支。分支按 Canvas 公开站点维护代码基线；模型 API 按站点 profile 固定，Artwork 使用 `https://artworkers.online`。`image.gptch.cloud` 与 `gptch.cloud` 共用 GPTCH 代码基线和 API 上游，两个 profile 仍保留独立镜像、发布和验收记录。
 - 发布源码默认取目标 `origin/<RELEASE_BRANCH>` 的完整 HEAD；“发布本站最新版本”指该分支最新提交。需要带上最新通用功能时，先审阅 `main` 与本站分支差异，再将所需提交同步到本站分支并推送。源码 gate 检查本站 release 分支，不再要求站点提交属于 `origin/main`。
 - 通用改动优先进入 `main`，再合并或挑选到各站分支；站点专用改动留在本站分支，不能整条反向合入 `main` 或其他站点。分支中仍使用构建参数选择域名，不改成源码硬编码。
 - release 分支是可发布的源码基线，不证明线上已部署。按域名分别记录本次 source SHA 和实际线上 image/source SHA；更新分支或推送不代表发布成功。
@@ -33,9 +33,10 @@ description: New_infinite-canvas 画布本地打包、验收、发布和回滚�
 发布前必须以当前提交重新检查源码，不以历史 profile 或镜像 tag 代替：
 
 - 构建上下文是仓库根目录，前端位于 `web/`，Docker 构建使用 `web/bun.lock` 和 Bun，运行镜像是 Nginx，监听容器 `3000`。
-- 当前 `Dockerfile` 通过 `ARG/ENV` 接收 `VITE_BASE`、`VITE_FIXED_API_BASE_URL` 和 `VITE_DOCS_URL`，构建时必须显式传入并记录三者。
-- 当前前端从 `VITE_FIXED_API_BASE_URL` 读取模型接口地址，从 `VITE_DOCS_URL` 读取文档地址；公开发布域名和 API 上游是两个独立字段。所有 Canvas profile 的 `VITE_FIXED_API_BASE_URL` 都必须固定为 `https://gptch.cloud`，不能根据公开页面域名自动推导。
-- `image.gptch.cloud` 的标准 profile 是：`PUBLIC_DOMAIN=image.gptch.cloud`、`VITE_BASE=/canvas/`、`VITE_FIXED_API_BASE_URL=https://gptch.cloud`。发布到该域名时，页面 Host 和模型请求 origin 必须分别保持这两个值；这一条只是该公开入口的特殊验收点，其他 Canvas 公开域名也使用同一个固定 API。
+- 当前 `Dockerfile` 通过 `ARG/ENV` 接收 `VITE_BASE`、`VITE_SITE_BRAND`、`VITE_FIXED_API_BASE_URL` 和 `VITE_DOCS_URL`，构建时必须显式传入并记录四者。
+- 页面品牌必须与站点 profile 的预期品牌一致：域名第一段默认作为品牌，`gptch.cloud` 的明确例外是 `cherry`。验收时同时检查 `document.title`、首页主标题和顶部导航品牌；出现 `meta.title` 等未解析 i18n key、空文本或错误品牌就停止该站点。
+- 当前前端从 `VITE_SITE_BRAND` 读取站点品牌，从 `VITE_FIXED_API_BASE_URL` 读取模型接口地址，从 `VITE_DOCS_URL` 读取文档地址；公开发布域名、页面品牌和 API 上游是三个独立字段，必须逐项核对站点 profile。Artwork 固定为品牌 `artworkers` 与 API `https://artworkers.online`；GPTCH 主站品牌为 `cherry`，Image GPTCH 品牌为 `image`，Tovyn 品牌为 `tovyn`，后三者 API 沿用 `https://gptch.cloud`。
+- `image.gptch.cloud` 的标准 profile 是：`PUBLIC_DOMAIN=image.gptch.cloud`、`VITE_BASE=/canvas/`、`VITE_FIXED_API_BASE_URL=https://gptch.cloud`。发布到该域名时，页面 Host 和模型请求 origin 必须分别保持这两个值；不能将这个跨域关系推广到 Artwork。
 - 当前生产 Vite 产物使用 `/canvas/` base path；HTML、运行期 `config.js`、Logo、本地插件清单、React Router basename 和 Nginx `/canvas/` location 必须一起匹配。
 - 当前 `config.js` 只承载统计 ID，不承载 API Key、文档地址或上传凭据。禁止把真实 Key、生产 env 或存储凭据注入烟测容器或写入发布证据。
 
@@ -52,13 +53,13 @@ description: New_infinite-canvas 画布本地打包、验收、发布和回滚�
 ## 发布顺序
 
 1. 解析 task ID，恢复 `.agents/state/tasks/<task-id>/process.md`，按域名自动切到对应 release 分支，记录切换前后分支、分支远端 HEAD、源码完整 SHA、公共路径、动作范围和验收条件；Git 分支切换不改变 task 绑定。
-2. 在干净 detached worktree 中归档精确提交；当前未提交修改不自动进入镜像。
+2. 为本次事务创建唯一目录和干净 detached worktree，归档精确提交；当前未提交修改不自动进入镜像。按[执行说明](references/release-workflow.md#选择发布提交)分别保存只读产物清单、锁内冻结的部署计划和可恢复的变更日志，跨阶段校验必填参数与事务身份。
 3. 运行源码契约 gate，确认目标域名和路径与当前代码实际消费的值一致；不满足就停止在本地准备阶段。
 4. 仅在本机 Docker daemon 和 Buildx endpoint 均确认后，执行 `linux/amd64 --load` 构建并记录 image ID、平台、归档大小和 SHA-256。
 5. 用精确 image ID 启动随机 loopback 端口烟测容器，验证 HTML、实际 JS/CSS、SPA 深层路由、`config.js` 和 Content-Type；容器 running 或首页 200 不能单独作为通过证据。
 6. 生产前重新只读发现两色容器、端口、网络、实际 health 命令、Nginx upstream/location、挂载、重启策略和旧回滚点。历史 profile 只用于定位，现场状态优先。
 7. 获得本次授权后，在共享发布锁下传输已验证归档，远端独立核对字节数、SHA-256、Docker image ID 和 `linux/amd64`，再以隔离候选色执行蓝绿切换。
-8. 备份完整 Nginx 文件和链接身份；`nginx -t`、reload、server-local Host/SNI、实际静态资源和公网 HTTPS 检查全部通过后，才更新另一色。任一步失败都恢复本次事务全部配置并验证旧流量。
+8. 备份完整 Nginx 文件和链接身份；只允许本站 Canvas diff，`nginx -t`、reload、server-local Host/SNI、实际静态资源、公网 HTTPS 与隔离浏览器检查全部通过后，才更新另一色。任一步失败都按实际变更日志恢复并验证旧流量，停止接流容器前先确认健康的恢复目标。
 9. 最终只在两色都使用本次精确镜像且授权包含清理时，按本站 Canvas allowlist 保留回滚点；禁止全局 prune、跨站清理或删除共享镜像。
 10. 更新原 task `process.md`，如实区分“skill 已更新”“本地产物已准备”“生产已发布”和“真实账户/生成流程未验证”。
 

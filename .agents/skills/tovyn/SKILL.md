@@ -15,6 +15,7 @@ description: 为 New_infinite-canvas 的 tovyn.xyz 画布处理本地打包、�
 SITE_KEY=tovyn-xyz
 RELEASE_BRANCH=codex/release-tovyn
 PUBLIC_DOMAIN=tovyn.xyz
+VITE_SITE_BRAND=tovyn
 VITE_BASE=/canvas/
 VITE_FIXED_API_BASE_URL=https://gptch.cloud
 VITE_DOCS_URL=https://tovyn.xyz/docs/

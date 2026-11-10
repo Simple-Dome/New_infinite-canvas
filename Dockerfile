@@ -6,6 +6,8 @@ COPY web/package.json web/bun.lock ./
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --cache-dir=/root/.bun/install/cache
 ARG VITE_BASE=/canvas/
 ENV VITE_BASE=${VITE_BASE}
+ARG VITE_SITE_BRAND=
+ENV VITE_SITE_BRAND=${VITE_SITE_BRAND}
 ARG VITE_FIXED_API_BASE_URL=
 ENV VITE_FIXED_API_BASE_URL=${VITE_FIXED_API_BASE_URL}
 ARG VITE_DOCS_URL=

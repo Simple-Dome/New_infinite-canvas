@@ -6,5 +6,6 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_BASE: /canvas/
-        VITE_FIXED_API_BASE_URL: https://gptch.cloud
+        VITE_SITE_BRAND: artworkers
+        VITE_FIXED_API_BASE_URL: https://artworkers.online
         VITE_DOCS_URL: https://artworkers.online/docs/image
