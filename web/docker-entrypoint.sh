@@ -20,3 +20,5 @@ window.__RUNTIME_CONFIG__ = {
   ANALYTICS_BAIDU_ID: "${BAIDU_ID}"
 };
 EOF
+
+chmod 644 /usr/share/nginx/html/config.js

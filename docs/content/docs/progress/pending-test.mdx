@@ -7,6 +7,8 @@ description: Implemented changes that still need manual verification
 
 The current release needs manual verification in these areas:
 
+- 画布运行配置：部署后打开 `/canvas/config.js` 应返回 200 和 JavaScript 内容，并可由 Nginx worker 读取；不应暴露统计配置以外的数据。
+
 - Tovyn 站点品牌：打开 `https://tovyn.xyz/canvas/`，左上角应显示 Tovyn，首页主标题和浏览器标题应显示正确的中文或英文名称，不应再出现原始 `meta.title` 键。
 
 - 站点 Skill 自动切分支：调用 `$artworkers` 应进入 `codex/release-artworkers`，`$cherry` 与 `$image-gptch` 应进入 `codex/release-gptch`，`$tovyn` 应进入 `codex/release-tovyn`；`$canvas-local` 按选定域名执行同样规则。应先刷新远端分支，本地缺失时从远端创建跟踪分支，仅落后时自动快进，仅领先时保留提交并说明；未提交源码或文档、可能被覆盖的未跟踪文件、分叉、worktree 占用或远端分支缺失时应保留现场并停止对应切换。任务状态和发布产物等无冲突本机目录应保留，task 绑定不变，切换不附带推送、构建或部署。本次已实际从 `codex/artworkers` 切到同一提交的 `codex/release-artworkers`，其余分支和异常场景待会话验证；TODO 无对应条目需要迁移。
