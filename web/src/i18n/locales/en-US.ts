@@ -10,6 +10,7 @@ export default {
         stage: { preparing: "Preparing and optimizing images", uploading: "Uploading and submitting task", generating: "Waiting for video generation", downloading: "Downloading video", saving: "Saving locally" },
     },
     meta: {
+        title: "Infinite Canvas",
         description: "An infinite canvas creation tool",
     },
     theme: { toggle: "Toggle theme" },

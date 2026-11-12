@@ -10,6 +10,7 @@ export default {
         stage: { preparing: "正在准备并优化参考图片", uploading: "正在上传并提交任务", generating: "正在等待视频生成", downloading: "正在下载视频", saving: "正在保存到本地" },
     },
     meta: {
+        title: "无限画布",
         description: "一个无限画布创作工具",
     },
     theme: { toggle: "切换主题" },

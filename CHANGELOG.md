@@ -2,6 +2,8 @@
 
 ## Unreleased
 
++ [修复] GPTCH 画布导航品牌显示 Cherry，补齐首页中英文标题，并确保运行配置文件可被 Nginx 读取。
+
 + [调整] 调用画布站点 Skill 时自动进入对应 release 分支，并保留未提交改动与本地提交。
 
 + [调整] 画布发布按 Artwork、GPTCH、Tovyn 的独立 release 分支选择源码基线，并按域名分别记录线上版本。
