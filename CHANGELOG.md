@@ -2,6 +2,8 @@
 
 ## Unreleased
 
++ [调整] Tovyn 站点导航品牌显示为 Tovyn，并补齐首页和浏览器标题翻译。
+
 + [调整] 调用画布站点 Skill 时自动进入对应 release 分支，并保留未提交改动与本地提交。
 
 + [调整] 画布发布按 Artwork、GPTCH、Tovyn 的独立 release 分支选择源码基线，并按域名分别记录线上版本。
