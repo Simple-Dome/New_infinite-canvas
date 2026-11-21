@@ -20,7 +20,7 @@ description: 为 New_infinite-canvas 默认从 origin/main 最新提交准备本
 - 正常发布的默认组合为 `origin/main` → `image.cherryai.cc` → SSH `newapi`（`root@144.34.129.161`）。用户说“发布 main”或“更新画布”时使用这个目标，不再要求从旧三站中选择。
 - 所有站点的普通发布都先刷新 `origin/main`，固定其最新完整 SHA 后构建；不再按域名选择 `codex/release-*`、`release/*`，也不从当前工作目录 HEAD 或任务名推断源码。
 - `gptch.cloud`、`image.gptch.cloud`、`artworkers.online`、`tovyn.xyz` 是历史 profile，仅在用户明确指定时使用。同一次多站发布共用一个源码 SHA，各站参数和部署记录按目标 profile 保存。
-- `image.cherryai.cc` 的模型 API 仅允许 `https://artworkers.online`、`https://tovyn.xyz`、`https://gptch.cloud`，通过构建变量 `VITE_API_ALLOWED_ORIGINS` 配置；`VITE_FIXED_API_BASE_URL` 留空，允许渠道在三者间选择。访问路径和文档地址仍按 profile 确定；现有容器和旧入口如何整合需按现场与具体方案实施。
+- `image.cherryai.cc` 的模型 API 仅允许 `https://artworkers.online`、`https://tovyn.xyz`、`https://gptch.cloud`，通过构建变量 `VITE_API_ALLOWED_ORIGINS` 配置；`VITE_FIXED_API_BASE_URL` 留空；接口地址由用户手动填写，初始和新建渠道默认留空，白名单只用于请求校验，不展示域名下拉选项、补全建议或域名占位提示。访问路径和文档地址仍按 profile 确定；现有容器和旧入口如何整合需按现场与具体方案实施。
 - 只有用户明确指定历史提交、tag、其他分支或回滚版本时才使用例外来源，并记录来源、完整 SHA 和原因。构建或验收失败时，不自动退回旧站点分支。
 
 ## 当前源码契约

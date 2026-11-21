@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { FIXED_API_BASE_URL } from "@/constant/env";
-import { API_ALLOWED_ORIGINS, assertApiUrlAllowed } from "@/lib/api-access";
+import { assertApiUrlAllowed } from "@/lib/api-access";
 import { defaultBaseUrlForApiFormat, guessCapability, normalizeChannelModels, type ApiCallFormat, type ChannelModel, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
 import { protocolVideoModels } from "@/lib/video-protocol";
 import { ModelScriptEditor } from "./model-script-editor";
@@ -89,7 +89,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
                 </label>
                 <label className="block md:col-span-2">
                     <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.baseUrl")}</span>
-                    {FIXED_API_BASE_URL ? <Input value={FIXED_API_BASE_URL} disabled /> : <Select className="w-full" value={draft.baseUrl || undefined} options={API_ALLOWED_ORIGINS.map((value) => ({ label: value, value }))} onChange={(baseUrl) => patch({ baseUrl })} />}
+                    <Input value={FIXED_API_BASE_URL || draft.baseUrl} disabled={Boolean(FIXED_API_BASE_URL)} autoComplete="off" onChange={(event) => patch({ baseUrl: event.target.value })} />
                 </label>
                 <label className="block md:col-span-2">
                     <span className="mb-1 block text-sm font-medium">API Key</span>

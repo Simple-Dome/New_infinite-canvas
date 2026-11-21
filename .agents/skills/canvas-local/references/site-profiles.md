@@ -13,14 +13,14 @@
 | PUBLIC_DOMAIN | `image.cherryai.cc` |
 | SSH | `newapi`（本机配置为 `root@144.34.129.161:22`，发布前重新核对） |
 | 访问路径 / VITE_BASE | 待用户确定，不自动沿用旧站 `/canvas/` |
-| VITE_FIXED_API_BASE_URL | 空字符串，允许在白名单内选择渠道 |
+| VITE_FIXED_API_BASE_URL | 空字符串；接口地址手动填写，默认留空 |
 | VITE_API_ALLOWED_ORIGINS | `https://artworkers.online,https://tovyn.xyz,https://gptch.cloud` |
 | VITE_DOCS_URL | 待确认，不自动复用旧三站文档地址 |
 | 容器、端口、网络、Nginx 和回滚点 | 发布前只读发现，不能复用旧站名冒充现场事实 |
 
 这是普通 main 发布的默认目标，域名后缀是 `.cc`。代码或旧文档中的 `image.cherryai.cn` 不是此 profile；发布前检查相关访问入口配置，不能把两者混用。访问路径和文档地址完善后再准备镜像。
 
-模型白名单通过构建变量配置，默认就是上述三站。按 URL 的 HTTPS origin 精确匹配，允许其下 API 路径（如 `/v1`、`/v1beta`）；空列表或无效配置拒绝所有模型请求，不回退到官方 API。被拒绝的请求在发送前抛出 400 应用错误，不会产生远端 HTTP 响应。R2 预签名素材上传、返回的图片/视频 URL、WebDAV 与本地 Agent 属于各自的独立用途，不当作渠道 API origin。
+模型白名单通过构建变量配置，默认就是上述三站。它只用于请求校验：接口地址必须是纯手动输入框，初始和新建渠道默认留空，不展示域名选项、补全或域名占位提示，切换协议不得自动填入地址。按 URL 的 HTTPS origin 精确匹配，允许其下 API 路径（如 `/v1`、`/v1beta`）；空列表或无效配置拒绝所有模型请求，不回退到官方 API。被拒绝的请求在发送前抛出 400 应用错误，不会产生远端 HTTP 响应。R2 预签名素材上传、返回的图片/视频 URL、WebDAV 与本地 Agent 属于各自的独立用途，不当作渠道 API origin。
 
 ## 目标主机
 

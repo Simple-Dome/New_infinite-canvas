@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 
 import { FIXED_API_BASE_URL } from "@/constant/env";
-import { API_ALLOWED_ORIGINS, assertApiUrlAllowed, isApiUrlAllowed } from "@/lib/api-access";
+import { assertApiUrlAllowed, isApiUrlAllowed } from "@/lib/api-access";
 import i18n from "@/i18n";
 
 export type ApiCallFormat = "openai" | "gemini" | "moai" | "grok" | "minimax";
@@ -80,20 +80,19 @@ export type ChannelCredentialsImportResult = {
 
 export const CONFIG_STORE_KEY = "infinite-canvas:ai_config_store";
 const CHANNEL_MODEL_SEPARATOR = "::";
-const DEFAULT_API_BASE_URL = API_ALLOWED_ORIGINS[0] || "";
 export const LOCAL_PROXY_PACKAGE = "@basketikun/canvas-proxy";
 export const DEFAULT_LOCAL_PROXY_URL = "http://127.0.0.1:23210";
 
 export const defaultConfig: AiConfig = {
     channelMode: "local",
-    baseUrl: DEFAULT_API_BASE_URL,
+    baseUrl: FIXED_API_BASE_URL,
     apiKey: "",
     apiFormat: "openai",
     channels: [
         {
             id: "default",
             name: i18n.t("config.channels.defaultName"),
-            baseUrl: DEFAULT_API_BASE_URL,
+            baseUrl: FIXED_API_BASE_URL,
             apiKey: "",
             apiFormat: "openai",
             models: [
@@ -495,7 +494,7 @@ export function normalizeAiConfig(input: Partial<AiConfig>): AiConfig {
 }
 
 export function defaultBaseUrlForApiFormat(_apiFormat: ApiCallFormat) {
-    return FIXED_API_BASE_URL || DEFAULT_API_BASE_URL;
+    return FIXED_API_BASE_URL;
 }
 
 export function fixedApiBaseUrl(baseUrl: string) {
