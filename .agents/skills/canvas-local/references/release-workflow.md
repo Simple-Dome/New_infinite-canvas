@@ -55,8 +55,8 @@ SOURCE_ARCHIVE_SHA256=$(shasum -a 256 "$SOURCE_ARCHIVE" | awk '{print $1}')
 
 - `Dockerfile` 必须从根目录构建 `web/`、使用 `web/bun.lock`、暴露 `3000` 并复制 Nginx 配置；
 - `PUBLIC_DOMAIN` 必须是 profile 中的公开域名，当前包括 `gptch.cloud`、`image.gptch.cloud`、`artworkers.online` 和 `tovyn.xyz`；`SITE_KEY` 必须与 profile 一致，公共路径必须为 `/canvas/`；
-- `VITE_BASE` 必须为 `/canvas/`，所有 profile 的 `VITE_FIXED_API_BASE_URL` 必须严格等于 `https://gptch.cloud`；不能把公开页面域名或 `image.gptch.cloud` 自动当成 API 地址。`VITE_DOCS_URL` 必须是本次公开站点选择的文档入口。三个参数都必须传给 Dockerfile 的对应 `ARG`；
-- 每个 profile 都必须同时记录自己的 `PUBLIC_DOMAIN` 和固定的 `VITE_FIXED_API_BASE_URL=https://gptch.cloud`；只记录 API 地址或只记录浏览器访问地址都不足以证明目标正确。对 `image-gptch-cloud`，额外确认页面 Host 是 `image.gptch.cloud` 即可。
+- `VITE_BASE` 必须为 `/canvas/`，`VITE_FIXED_API_BASE_URL` 必须严格等于 [站点入口映射](site-profiles.md#站点入口与源码支持矩阵) 中的 API 上游，不能从页面域名自动推导；`VITE_DOCS_URL` 必须是本次公开站点选择的文档入口。三个参数都必须传给 Dockerfile 的对应 `ARG`；
+- 每个 profile 都必须同时记录 `PUBLIC_DOMAIN` 和 `VITE_FIXED_API_BASE_URL`；只记录 API 地址或浏览器访问地址都不足以证明目标正确。Tovyn 的 API 固定为 `https://tovyn.xyz`，`image-gptch-cloud` 的 API 仍为 `https://gptch.cloud`。
 - `web/src/constant/env.ts` 必须读取 `VITE_FIXED_API_BASE_URL` 和 `VITE_DOCS_URL`，不能出现站点硬编码；`web/index.html`、Vite `base`、Router basename、插件清单 URL 和 `nginx.conf` 的 `/canvas/` location 必须互相匹配；
 - 从生成的 HTML/JS 中验证最终 API 和文档地址，不能以 Docker 命令出现参数或源码存在变量名代替构建结果证据。
 
@@ -104,7 +104,7 @@ SMOKE_PORT=$(docker port "$SMOKE_CONTAINER" 3000/tcp | sed -E 's/.*:([0-9]+)$/\1
 
 等待 Nginx 启动后，用 `curl --noproxy '*'` 检查 `/canvas/`、`/canvas/image`、`/canvas/config`、`/canvas/config.js` 和一个真实的 `/canvas/canvas/<id>` 深层路由。解析 HTML 中引用的每个 JS/CSS 地址，逐个检查可下载、Content-Type 正确、正文不是 `index.html`；确认插件清单 URL 带 `/canvas/` 前缀，`config.js` 只包含允许的统计字段。用隔离浏览器上下文检查 React 实际挂载和无模块解析错误，不修改用户已打开的浏览器窗口或存储。完成后无论成功失败都删除临时容器。
 
-用隔离浏览器上下文对每个公开站点分别验证渠道地址不可编辑、旧配置/配置文件/URL 参数不能覆盖固定 API，并拦截模型列表请求确认实际 origin 等于 `https://gptch.cloud`。对于 `image.gptch.cloud`，页面 Host 是 `image.gptch.cloud`，模型请求 origin 也必须仍是 `gptch.cloud`；其他公开域名同样不得把自己的 Host 当作 API。发现任一站点产物仍包含错误 API origin 或文档地址时，只停止该站点，不复用其镜像给其他站点。
+用隔离浏览器上下文对每个公开站点分别验证渠道地址不可编辑、旧配置/配置文件/URL 参数不能覆盖固定 API，并拦截模型列表请求确认实际 origin 与所选 profile 的 `VITE_FIXED_API_BASE_URL` 一致。Tovyn 的 OpenAI 兼容模型列表应请求 `https://tovyn.xyz/v1/models`，不得请求 GPTCH；`image.gptch.cloud` 的模型请求仍发往 `https://gptch.cloud`。发现任一站点产物仍包含错误 API origin 或文档地址时，只停止该站点，不复用其镜像给其他站点。
 
 ## 5. 生产发布门槛
 

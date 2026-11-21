@@ -2,6 +2,8 @@
 
 ## Unreleased
 
++ [修复] Tovyn 画布使用 `https://tovyn.xyz` 的模型 API，不再将请求发往 GPTCH。
+
 - [修复] 修复画布运行配置因文件权限导致 `/canvas/config.js` 返回 403 的问题。
 
 + [调整] Tovyn 站点导航品牌显示为 Tovyn，并补齐首页和浏览器标题翻译。
@@ -10,7 +12,7 @@
 
 + [调整] 画布发布按 Artwork、GPTCH、Tovyn 的独立 release 分支选择源码基线，并按域名分别记录线上版本。
 
-+ [调整] 所有画布站点的固定模型 API 统一为 `https://gptch.cloud`，公开页面域名与 API 基线解耦。
++ [调整] 模型 API 由站点 profile 固定，不根据公开页面域名自动推导。
 
 + [修复] 画布视频保存完成后立即显示结果，避免等待视频元数据时一直停在保存状态。
 

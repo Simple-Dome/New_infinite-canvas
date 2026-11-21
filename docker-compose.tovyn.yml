@@ -1,0 +1,10 @@
+services:
+  app:
+    image: infinite-canvas:tovyn-xyz
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_BASE: /canvas/
+        VITE_FIXED_API_BASE_URL: https://tovyn.xyz
+        VITE_DOCS_URL: https://tovyn.xyz/docs/

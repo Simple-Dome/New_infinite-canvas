@@ -19,13 +19,13 @@
 | [cherry](../../cherry/SKILL.md) | `gptch-cloud` | `gptch.cloud` | `https://gptch.cloud` | `codex/release-gptch` |
 | [image-gptch](../../image-gptch/SKILL.md) | `image-gptch-cloud` | `image.gptch.cloud` | `https://gptch.cloud` | `codex/release-gptch` |
 | [artworkers](../../artworkers/SKILL.md) | `artworkers-online` | `artworkers.online` | `https://gptch.cloud` | `codex/release-artworkers` |
-| [tovyn](../../tovyn/SKILL.md) | `tovyn-xyz` | `tovyn.xyz` | `https://gptch.cloud` | `codex/release-tovyn` |
+| [tovyn](../../tovyn/SKILL.md) | `tovyn-xyz` | `tovyn.xyz` | `https://tovyn.xyz` | `codex/release-tovyn` |
 
 入口名称用于选择站点 skill，不能作为 SSH 目标；连接主机使用上方目标主机配置。明确给出域名时按此表选择入口，并按 [调用时切换分支](release-workflow.md#调用时切换分支) 自动切到表中的本地 release 分支；`cherry` 和 `image-gptch` 都进入 `codex/release-gptch`。只说恢复 task 时先读任务状态，不把 task 名称当成发布请求。
 
-上表约定三条代码基线，不表示这些 Git 分支已经创建或已部署。`main` 是通用开发基线；发布前先确认对应远端 release 分支存在，再按其精确提交进入源码 gate。三个 Canvas profile 的模型 API 都固定为 `https://gptch.cloud`，公开域名只决定页面入口和独立发布记录。GPTCH 两个公开域名共用代码分支，更新或发布其中一个域名不自动更新另一个域名。
+上表约定三条代码基线，不表示这些 Git 分支已经创建或已部署。`main` 是通用开发基线；发布前先确认对应远端 release 分支存在，再按其精确提交进入源码 gate。模型 API 以目标 release 分支中的站点 profile 为准。GPTCH 两个公开域名共用代码分支，更新或发布其中一个域名不自动更新另一个域名。
 
-同一提交在每个公开域名必须各自构建独立镜像。`VITE_BASE` 统一为 `/canvas/`；`VITE_FIXED_API_BASE_URL` 在所有 profile 中固定填写 `https://gptch.cloud`，`VITE_DOCS_URL` 按公开站点 profile 单独填写。只有在 HTML、静态资源、Router basename、插件清单和 Nginx `/canvas/` 路由全部通过后，公开站点才算支持。
+同一提交在每个公开域名必须各自构建独立镜像。`VITE_BASE` 统一为 `/canvas/`；`VITE_FIXED_API_BASE_URL` 和 `VITE_DOCS_URL` 按所选 profile 填写。只有在 HTML、静态资源、Router basename、插件清单和 Nginx `/canvas/` 路由全部通过后，公开站点才算支持。
 
 `image-gptch-cloud` 的参数关系必须保持如下，不能按页面 Host 自动推导 API 地址：
 
@@ -45,7 +45,7 @@ VITE_DOCS_URL=https://gptch.cloud/docs/image
 | `gptch-cloud` | `gptch.cloud` | `/canvas/` | `https://gptch.cloud` | `https://gptch.cloud/docs/image` |
 | `image-gptch-cloud` | `image.gptch.cloud` | `/canvas/` | `https://gptch.cloud` | `https://gptch.cloud/docs/image` |
 | `artworkers-online` | `artworkers.online` | `/canvas/` | `https://gptch.cloud` | `https://artworkers.online/docs/image` |
-| `tovyn-xyz` | `tovyn.xyz` | `/canvas/` | `https://gptch.cloud` | `https://tovyn.xyz/docs/` |
+| `tovyn-xyz` | `tovyn.xyz` | `/canvas/` | `https://tovyn.xyz` | `https://tovyn.xyz/docs/` |
 
 候选 URL 返回错误、跳转到其他站点或不属于本站文档时，停止该站点构建，不自动回退到默认文档地址。
 

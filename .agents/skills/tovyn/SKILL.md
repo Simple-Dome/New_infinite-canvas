@@ -1,6 +1,6 @@
 ---
 name: tovyn
-description: 为 New_infinite-canvas 的 tovyn.xyz 画布处理本地打包、构建验收、部署或回滚请求。用户指定 Tovyn、tovyn 或 tovyn.xyz 的 Canvas 发布工作时使用；页面域名独立，模型 API 固定为 gptch.cloud，只处理 Canvas 静态前端。
+description: 为 New_infinite-canvas 的 tovyn.xyz 画布处理本地打包、构建验收、部署或回滚请求。用户指定 Tovyn、tovyn 或 tovyn.xyz 的 Canvas 发布工作时使用；模型 API 固定为 tovyn.xyz，只处理 Canvas 静态前端。
 ---
 
 # Tovyn 画布发布
@@ -16,8 +16,8 @@ SITE_KEY=tovyn-xyz
 RELEASE_BRANCH=codex/release-tovyn
 PUBLIC_DOMAIN=tovyn.xyz
 VITE_BASE=/canvas/
-VITE_FIXED_API_BASE_URL=https://gptch.cloud
+VITE_FIXED_API_BASE_URL=https://tovyn.xyz
 VITE_DOCS_URL=https://tovyn.xyz/docs/
 ```
 
-文档地址在构建前按共用流程确认；每站独立构建并验证固定 API。`tovyn` 是 skill 名称，SSH 目标沿用共用流程的主机配置。恢复同名 task 时先读其 `process.md`，不自动构建或发布；API、Uploads、数据库及其他站点不在范围内。
+本地 Compose 构建配置为 `docker-compose.tovyn.yml`；正式发布按共用流程构建并验证模型列表请求命中 `https://tovyn.xyz/v1/models`。`tovyn` 是 skill 名称，SSH 目标沿用共用流程的主机配置。恢复同名 task 时先读其 `process.md`，不自动构建或发布；API 后端、Uploads、数据库及其他站点不在范围内。
