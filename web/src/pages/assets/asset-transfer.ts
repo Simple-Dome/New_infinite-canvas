@@ -2,7 +2,7 @@ import { saveAs } from "file-saver";
 
 import { createZip, readZip } from "@/lib/zip";
 import { getMediaBlob, setMediaBlob } from "@/services/file-storage";
-import { getImageBlob, setImageBlob } from "@/services/image-storage";
+import { readImageBlob, setImageBlob } from "@/services/image-storage";
 import type { Asset } from "@/stores/use-asset-store";
 
 type AssetExportFile = {
@@ -29,7 +29,7 @@ export async function exportAssets(assets: Asset[], filename: string) {
             if (asset.kind !== "image" && asset.kind !== "video") return;
             const storageKey = asset.data.storageKey;
             if (!storageKey) return;
-            const blob = asset.kind === "image" ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);
+            const blob = asset.kind === "image" ? await readImageBlob({ storageKey, dataUrl: asset.kind === "image" ? asset.data.dataUrl || asset.coverUrl : "" }) : await getMediaBlob(storageKey);
             if (!blob) return;
             const path = `files/${safeFileName(storageKey)}.${fileExtension(blob.type, asset.kind)}`;
             files.push({ storageKey, path, mimeType: blob.type || asset.data.mimeType, bytes: blob.size });

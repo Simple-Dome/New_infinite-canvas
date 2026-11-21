@@ -2,6 +2,8 @@
 
 ## Unreleased
 
++ [优化] 生图外链先展示并后台保存到浏览器，支持保存失败重试、刷新恢复及原图下载和导出复用，避免长期依赖失效外链。
+
 + [调整] 发布构建改为通过 `VITE_FIXED_API_BASE_URL`、`VITE_DOCS_URL` 和 `VITE_BASE` 按站点生成独立镜像，并统一支持 `/canvas/` 子路径资源、路由和本地插件清单。
 
 + [修复] 修复 Streamdown 的 `property-information` 依赖被错误提升后导致生产构建保留浏览器无法解析的裸模块、页面启动黑屏的问题。

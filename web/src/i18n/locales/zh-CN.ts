@@ -1,4 +1,9 @@
 export default {
+    imageSave: {
+        saving: "正在保存到浏览器", retry: "本地保存失败，重试保存", loadFailed: "图片加载失败",
+        httpError: "图片获取失败（HTTP {{status}}）", timeout: "图片下载超时，请重试保存",
+        networkError: "无法读取图片，可能是网络或跨域限制。请重试，或在配置中启用已启动的本地代理。",
+    },
     uploadImages: {
         resultPending: "视频已生成，结果获取尚未完成",
         moaiOption: "Seedance",

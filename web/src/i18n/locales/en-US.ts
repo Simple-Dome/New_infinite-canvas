@@ -1,4 +1,9 @@
 export default {
+    imageSave: {
+        saving: "Saving to browser", retry: "Local save failed. Retry saving", loadFailed: "Image failed to load",
+        httpError: "Image download failed (HTTP {{status}})", timeout: "Image download timed out. Retry saving.",
+        networkError: "Cannot read the image due to a network or CORS restriction. Retry, or enable a running local proxy in settings.",
+    },
     uploadImages: {
         resultPending: "Video generated; result retrieval is incomplete",
         moaiOption: "Seedance",

@@ -3,7 +3,7 @@ import { saveAs } from "file-saver";
 import i18n from "@/i18n";
 import { createZip } from "@/lib/zip";
 import { getMediaBlob } from "@/services/file-storage";
-import { getImageBlob } from "@/services/image-storage";
+import { readImageBlob } from "@/services/image-storage";
 import type { CanvasExportAsset, CanvasExportFile } from "@/types/canvas-export";
 import type { CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
@@ -15,7 +15,7 @@ export async function exportCanvasProjects(projects: CanvasProject[], fileName =
             const files: CanvasExportAsset[] = [];
             await Promise.all(
                 collectStorageKeys(project).map(async (storageKey) => {
-                    const blob = storageKey.startsWith("image:") ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);
+                    const blob = storageKey.startsWith("image:") ? await readImageBlob({ storageKey }) : await getMediaBlob(storageKey);
                     if (!blob) return;
                     const path = `projects/${project.id}/files/${safeFileName(storageKey)}.${fileExtension(blob.type, storageKey)}`;
                     files.push({ storageKey, path, mimeType: blob.type || "application/octet-stream", bytes: blob.size });
@@ -47,7 +47,7 @@ export async function exportCanvasNodes(nodes: CanvasNodeData[], fileName = i18n
             const title = node.title || node.type;
             const storageKey = node.metadata?.storageKey || "";
             if (storageKey) {
-                const blob = storageKey.startsWith("image:") ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);
+                const blob = storageKey.startsWith("image:") ? await readImageBlob({ storageKey }) : await getMediaBlob(storageKey);
                 if (blob) return void zipFiles.push({ name: uniqueName(title, fileExtension(blob.type, storageKey)), data: blob });
             }
             if (node.type === CanvasNodeType.Text) return void zipFiles.push({ name: uniqueName(title, "txt"), data: node.metadata?.content || node.metadata?.prompt || "" });

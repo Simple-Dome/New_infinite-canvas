@@ -2,7 +2,9 @@ import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download,
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { App, Button, Checkbox, Drawer, Empty, Image, Input, Modal, Tag, Tooltip, Typography } from "antd";
 import localforage from "localforage";
-import { saveAs } from "file-saver";
+import { useDownloadImage } from "@/hooks/use-download-image";
+import { ImageSaveStatus } from "@/components/image-save-status";
+import { recordImageDimensions, useImageSaveStore } from "@/stores/use-image-save-store";
 import { useTranslation } from "react-i18next";
 
 import { resolveImageOutputConfig } from "@/lib/image-generation";
@@ -17,7 +19,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { nanoid } from "nanoid";
 import { formatBytes, formatDuration, imageFileExtension } from "@/lib/image-utils";
 import { requestEdit, requestGeneration } from "@/services/api/image";
-import { deleteStoredImages, ensureImagePreview, getImagePreviewRevision, previewUrlFor, resolveImageUrl, subscribeImagePreviews, uploadImage } from "@/services/image-storage";
+import { ensureImagePreview, getImagePreviewRevision, previewUrlFor, resolveImageUrl, subscribeImagePreviews, prepareGeneratedImage, ensureImageSaved, uploadImage } from "@/services/image-storage";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 import type { ReferenceImage } from "@/types/image";
@@ -70,6 +72,7 @@ const logStore = localforage.createInstance({ name: "infinite-canvas", storeName
 
 export default function ImagePage() {
     const { message } = App.useApp();
+    const downloadImageFile = useDownloadImage();
     const { t } = useTranslation();
     useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -178,7 +181,14 @@ export default function ImagePage() {
         const batchStartedAt = performance.now();
         setStartedAt(batchStartedAt);
 
-        const tasks = Array.from({ length: generationCount }, (_, index) => runGenerationSlot(index, snapshot));
+        const progressLog = buildLog({ prompt: text, model, config: { ...snapshot.config, count: String(generationCount) }, references: snapshot.references, durationMs: 0, successCount: 0, failCount: 0, status: "success", images: [] });
+        const tasks = Array.from({ length: generationCount }, (_, index) => runGenerationSlot(index, snapshot).then((image) => {
+            progressLog.images = [...progressLog.images, image];
+            progressLog.imageCount = progressLog.successCount = progressLog.images.length;
+            progressLog.durationMs = performance.now() - batchStartedAt;
+            saveLog(progressLog);
+            return image;
+        }));
 
         const result = await Promise.allSettled(tasks);
         const successImages = result.filter((item): item is PromiseFulfilledResult<GeneratedImage> => item.status === "fulfilled").map((item) => item.value);
@@ -189,8 +199,8 @@ export default function ImagePage() {
         if (agentTaskId) updateAgentTask(agentTaskId, { status: successCount ? "succeeded" : "failed", successCount, failCount, error: successCount ? undefined : error });
 
         try {
-            saveLog(
-                buildLog({
+            saveLog({
+                ...buildLog({
                     prompt: text,
                     model,
                     config: { ...snapshot.config, count: String(generationCount) },
@@ -201,7 +211,9 @@ export default function ImagePage() {
                     status: successCount ? "success" : "failed",
                     images: successImages,
                 }),
-            );
+                id: progressLog.id,
+                createdAt: progressLog.createdAt,
+            });
             successCount ? message.success(t("imageWorkbench.generated")) : message.error(failed?.reason instanceof Error ? failed.reason.message : t("workbench.generationFailed"));
         } finally {
             setRunning(false);
@@ -231,24 +243,27 @@ export default function ImagePage() {
     }, [autoRunToken]);
 
     const downloadImage = (image: GeneratedImage, index: number) => {
-        saveAs(image.dataUrl, `image-${index + 1}.${imageFileExtension(image.mimeType, image.dataUrl)}`);
+        void downloadImageFile(image, `image-${index + 1}`);
     };
 
     const addResultToReferences = async (image: GeneratedImage, index: number) => {
-        const stored = await uploadImage(image.dataUrl);
-        setReferences((value) => [...value, { id: nanoid(), name: `result-${index + 1}.${imageFileExtension(stored.mimeType)}`, type: stored.mimeType, dataUrl: stored.url, storageKey: stored.storageKey }]);
-        message.success(t("imageWorkbench.addedReference"));
+        try {
+            const stored = await ensureImageSaved(image);
+            setReferences((value) => [...value, { id: nanoid(), name: `result-${index + 1}.${imageFileExtension(stored.mimeType)}`, type: stored.mimeType, dataUrl: stored.url, storageKey: stored.storageKey }]);
+            message.success(t("imageWorkbench.addedReference"));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : t("common.imageReadFailed"));
+        }
     };
 
     const saveResultToAssets = async (image: GeneratedImage, index: number) => {
-        const stored = await uploadImage(image.dataUrl);
         addAsset({
             kind: "image",
             title: t("imageWorkbench.resultTitle", { count: index + 1 }),
-            coverUrl: stored.url,
+            coverUrl: image.dataUrl,
             tags: [],
             source: t("imageWorkbench.source"),
-            data: { dataUrl: stored.url, storageKey: stored.storageKey, width: stored.width, height: stored.height, bytes: stored.bytes, mimeType: stored.mimeType },
+            data: { dataUrl: image.dataUrl, storageKey: image.storageKey, width: image.width, height: image.height, bytes: image.bytes, mimeType: image.mimeType || "" },
             metadata: { source: "image-page", prompt },
         });
         message.success(t("common.addedToAssets"));
@@ -277,8 +292,10 @@ export default function ImagePage() {
     };
 
     const deleteSelectedLogs = () => {
-        const imageKeys = logs.filter((log) => selectedLogIds.includes(log.id)).flatMap((log) => log.images.map((image) => image.storageKey).filter((key): key is string => Boolean(key)));
-        void Promise.all([deleteStoredImages(imageKeys), ...selectedLogIds.map((id) => logStore.removeItem(id))]).then(refreshLogs);
+        void Promise.all(selectedLogIds.map((id) => logStore.removeItem(id))).then(async () => {
+            await refreshLogs();
+            useAssetStore.getState().cleanupImages({ references });
+        });
         if (previewLog && selectedLogIds.includes(previewLog.id)) {
             setPreviewLog(null);
             setResults([]);
@@ -328,7 +345,7 @@ export default function ImagePage() {
             const result = snapshot.references.length ? await requestEdit(snapshot.config, snapshot.text, snapshot.references) : await requestGeneration(snapshot.config, snapshot.text);
             const image = result[0];
             if (!image) throw new Error(t("imageWorkbench.missingResult"));
-            const stored = await uploadImage(image.dataUrl);
+            const stored = await prepareGeneratedImage(image.dataUrl);
             const nextImage: GeneratedImage = { id: image.id, dataUrl: stored.url, ...(stored.storageKey ? { storageKey: stored.storageKey } : {}), durationMs: performance.now() - itemStartedAt, width: stored.width, height: stored.height, bytes: stored.bytes, mimeType: stored.mimeType };
             setResults((value) => updateResultAt(value, index, { status: "success", image: nextImage }));
             return nextImage;
@@ -576,7 +593,7 @@ function GenerationSettings({ config, model, updateConfig, openConfigDialog }: {
 }
 
 function ResultImageCard({
-    image,
+    image: originalImage,
     index,
     onEdit,
     onDownload,
@@ -589,10 +606,16 @@ function ResultImageCard({
     onSaveAsset: (image: GeneratedImage, index: number) => void;
 }) {
     const { t } = useTranslation();
+    const task = useImageSaveStore((state) => originalImage.storageKey ? state.tasks[originalImage.storageKey] : undefined);
+    const saved = task?.image;
+    const image = saved ? { ...originalImage, dataUrl: saved.url, width: saved.width, height: saved.height, bytes: saved.bytes, mimeType: saved.mimeType } : { ...originalImage, ...task?.dimensions };
+
     useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
     return (
         <div className="overflow-hidden rounded-lg border border-stone-200 bg-background dark:border-stone-800">
-            <Image src={image.mimeType === "image/gif" ? image.dataUrl : previewUrlFor(image.storageKey) || image.dataUrl} preview={{ src: image.dataUrl }} alt={t("imageWorkbench.resultAlt", { count: index + 1 })} className="aspect-square object-cover" />
+            <Image src={image.mimeType === "image/gif" ? image.dataUrl : previewUrlFor(image.storageKey) || image.dataUrl} preview={{ src: image.dataUrl }} alt={t("imageWorkbench.resultAlt", { count: index + 1 })} className="aspect-square object-cover" onLoad={(event) => {
+                if (!image.width) recordImageDimensions(image.storageKey, event.currentTarget.naturalWidth, event.currentTarget.naturalHeight);
+            }} />
             <div className="space-y-2 border-t border-stone-200 px-3 py-2.5 dark:border-stone-800">
                 <div className="flex min-w-0 gap-x-2 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
                     <span>
@@ -601,6 +624,7 @@ function ResultImageCard({
                     <span>{formatBytes(image.bytes)}</span>
                     <span>{formatDuration(image.durationMs)}</span>
                 </div>
+                <ImageSaveStatus storageKey={image.storageKey} />
                 <div className="grid min-w-0 grid-cols-3 gap-2">
                     <Tooltip title={t("common.addToAssets")}>
                         <Button className={RESULT_ACTION_BUTTON_CLASS} size="small" icon={<FolderPlus className="size-3.5" />} onClick={() => void onSaveAsset(image, index)}>
@@ -797,7 +821,9 @@ async function normalizeLog(log: Partial<GenerationLog>): Promise<GenerationLog>
     const images = await Promise.all(
         (log.images || []).map(async (item) => {
             void ensureImagePreview(item.storageKey);
-            return { ...item, dataUrl: await resolveImageUrl(item.storageKey, item.dataUrl) };
+            const dataUrl = await resolveImageUrl(item.storageKey, item.dataUrl);
+            if (item.storageKey && !item.width && !useImageSaveStore.getState().tasks[item.storageKey]) void ensureImageSaved({ storageKey: item.storageKey, url: item.dataUrl }).catch(() => undefined);
+            return { ...item, dataUrl };
         }),
     );
     const config = normalizeLogConfig(log);
@@ -824,8 +850,8 @@ async function normalizeLog(log: Partial<GenerationLog>): Promise<GenerationLog>
 function serializeLog(log: GenerationLog): GenerationLog {
     return {
         ...log,
-        references: log.references.map((item) => ({ ...item, dataUrl: item.storageKey ? "" : item.dataUrl })),
-        images: log.images.map((image) => ({ ...image, dataUrl: image.storageKey ? "" : image.dataUrl })),
+        references: log.references.map((item) => ({ ...item, dataUrl: item.storageKey && !/^https?:\/\//i.test(item.dataUrl) ? "" : item.dataUrl })),
+        images: log.images.map((image) => ({ ...image, dataUrl: image.storageKey && !/^https?:\/\//i.test(image.dataUrl) ? "" : image.dataUrl })),
     };
 }
 

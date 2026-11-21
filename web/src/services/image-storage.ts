@@ -2,7 +2,8 @@ import localforage from "localforage";
 
 import { nanoid } from "nanoid";
 import i18n from "@/i18n";
-import { withLocalProxy } from "@/stores/use-config-store";
+import { fetchImageBlob } from "@/services/api/image-file";
+import { updateImageSaveTask, useImageSaveStore } from "@/stores/use-image-save-store";
 import { createImageThumbnail } from "@/lib/image-thumbnail";
 
 export type UploadedImage = {
@@ -15,6 +16,11 @@ export type UploadedImage = {
 };
 
 const store = localforage.createInstance({ name: "infinite-canvas", storeName: "image_files" });
+const sourceStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_sources" });
+const pendingSaves = new Map<string, Promise<UploadedImage>>();
+const saveControllers = new Map<string, AbortController>();
+const fileRevisions = new Map<string, number>();
+let fileRevision = 0;
 const previewStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_previews" });
 const imageLogStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_generation_logs" });
 const videoLogStore = localforage.createInstance({ name: "infinite-canvas", storeName: "video_generation_logs" });
@@ -24,11 +30,7 @@ const previewListeners = new Set<() => void>();
 let previewRevision = 0;
 let previewQueue: Promise<unknown> = Promise.resolve();
 const IMAGE_PREVIEW_VERSION = 1;
-const IMAGE_DOWNLOAD_TIMEOUT_MS = 10 * 60_000;
-const IMAGE_REMOTE_LOAD_TIMEOUT_MS = 10 * 60_000;
 const IMAGE_DECODE_TIMEOUT_MS = 10_000;
-const IMAGE_RESPONSE_ERROR = "ImageResponseError";
-const IMAGE_TIMEOUT_ERROR = "ImageTimeoutError";
 
 type StoredImagePreview = { version: number; blob?: Blob };
 
@@ -37,58 +39,86 @@ type ImageReadOptions = { signal?: AbortSignal };
 export async function uploadImage(input: string | Blob, options?: ImageReadOptions): Promise<UploadedImage> {
     if (typeof input !== "string") return storeImage(input, options);
 
-    let blob: Blob;
-    try {
-        blob = await fetchImageBlob(input, options);
-    } catch (error) {
-        if (options?.signal?.aborted || isNamedError(error, IMAGE_RESPONSE_ERROR) || isNamedError(error, IMAGE_TIMEOUT_ERROR) || !/^https?:\/\//i.test(input)) throw error;
-        const meta = await loadImageMeta(input, options, IMAGE_REMOTE_LOAD_TIMEOUT_MS);
-        if (!meta) throw error;
-        return { url: input, width: meta.width, height: meta.height, bytes: 0, mimeType: "" };
-    }
-    return storeImage(blob, options);
+    return storeImage(await fetchImageBlob(input, options), options);
 }
 
-async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<UploadedImage> {
+// 先登记稳定的文件引用并返回外链，后台任务不再绑定已结束的生图请求。
+export async function prepareGeneratedImage(input: string, options?: ImageReadOptions): Promise<UploadedImage> {
+    throwIfAborted(options?.signal);
+    if (!/^https?:\/\//i.test(input)) return uploadImage(input, options);
     const storageKey = `image:${nanoid()}`;
+    void ensureImageSaved({ storageKey, url: input }).catch(() => undefined);
+    return { url: input, storageKey, width: 0, height: 0, bytes: 0, mimeType: "" };
+}
+
+type ImageFileReference = { storageKey?: string; url?: string; dataUrl?: string };
+
+export function ensureImageSaved(image: ImageFileReference): Promise<UploadedImage> {
+    const storageKey = image.storageKey;
+    if (!storageKey) return uploadImage(image.dataUrl || image.url || "");
+    const pending = pendingSaves.get(storageKey);
+    if (pending) return pending;
+    const ready = useImageSaveStore.getState().tasks[storageKey]?.image;
+    if (ready && objectUrls.get(storageKey) === ready.url) return Promise.resolve(ready);
+    const controller = new AbortController();
+    saveControllers.set(storageKey, controller);
+    fileRevisions.set(storageKey, ++fileRevision);
+    const save = Promise.resolve().then(async () => {
+        const fallback = image.dataUrl || image.url || "";
+        let sourceUrl = /^https?:\/\//i.test(fallback) ? fallback : "";
+        try {
+            sourceUrl ||= await sourceStore.getItem<string>(storageKey) || "";
+            updateImageSaveTask(storageKey, { sourceUrl, status: "saving" });
+            const existing = await store.getItem<Blob>(storageKey);
+            if (sourceUrl && !existing) await sourceStore.setItem(storageKey, sourceUrl);
+            const blob = existing || await fetchImageBlob(sourceUrl || fallback, { signal: controller.signal });
+            const saved = await storeImage(blob, { signal: controller.signal }, storageKey, !existing);
+            updateImageSaveTask(storageKey, { sourceUrl, status: "saved", image: saved });
+            return saved;
+        } catch (error) {
+            updateImageSaveTask(storageKey, { sourceUrl, status: "error", error: error instanceof Error ? error.message : i18n.t("common.imageReadFailed") });
+            throw error;
+        }
+    });
+    pendingSaves.set(storageKey, save);
+    void save.finally(() => {
+        pendingSaves.delete(storageKey);
+        saveControllers.delete(storageKey);
+    }).catch(() => undefined);
+    return save;
+}
+
+export async function readImageBlob(image: ImageFileReference) {
+    if (image.storageKey) {
+        const pending = pendingSaves.get(image.storageKey);
+        if (pending) await pending;
+        const blob = await getImageBlob(image.storageKey);
+        if (blob) return blob;
+        await ensureImageSaved(image);
+        const saved = await getImageBlob(image.storageKey);
+        if (saved) return saved;
+    }
+    return fetchImageBlob(image.dataUrl || image.url || "");
+}
+
+async function storeImage(blob: Blob, options?: ImageReadOptions, storageKey = `image:${nanoid()}`, write = true): Promise<UploadedImage> {
+    fileRevisions.set(storageKey, ++fileRevision);
     const url = URL.createObjectURL(blob);
     try {
         const meta = await loadImageMeta(url, options);
         if (!meta) throw new Error(i18n.t("common.imageReadFailed"));
         throwIfAborted(options?.signal);
-        await store.setItem(storageKey, blob);
+        if (write) await store.setItem(storageKey, blob);
         throwIfAborted(options?.signal);
+        const previousUrl = objectUrls.get(storageKey);
         objectUrls.set(storageKey, url);
-        await storeImagePreview(storageKey, blob);
+        if (previousUrl && previousUrl !== url) URL.revokeObjectURL(previousUrl);
+        queueImagePreview(storageKey);
         return { url, storageKey, width: meta.width, height: meta.height, bytes: blob.size, mimeType: blob.type.startsWith("image/") ? blob.type : "" };
     } catch (error) {
         URL.revokeObjectURL(url);
-        await store.removeItem(storageKey).catch(() => undefined);
+        if (write) await store.removeItem(storageKey).catch(() => undefined);
         throw error;
-    }
-}
-
-async function fetchImageBlob(url: string, options?: ImageReadOptions) {
-    const controller = new AbortController();
-    let timedOut = false;
-    const abort = () => controller.abort();
-    if (options?.signal?.aborted) abort();
-    else options?.signal?.addEventListener("abort", abort, { once: true });
-    const timer = window.setTimeout(() => {
-        timedOut = true;
-        controller.abort();
-    }, IMAGE_DOWNLOAD_TIMEOUT_MS);
-    try {
-        const response = await fetch(withLocalProxy(url), { signal: controller.signal });
-        if (!response.ok) throw namedError(IMAGE_RESPONSE_ERROR);
-        return await response.blob();
-    } catch (error) {
-        if (timedOut) throw namedError(IMAGE_TIMEOUT_ERROR);
-        if (options?.signal?.aborted) throw abortReason(options.signal);
-        throw error;
-    } finally {
-        window.clearTimeout(timer);
-        options?.signal?.removeEventListener("abort", abort);
     }
 }
 
@@ -122,16 +152,6 @@ function loadImageMeta(url: string, options?: ImageReadOptions, timeoutMs = IMAG
     });
 }
 
-function namedError(name: string) {
-    const error = new Error(i18n.t("common.imageReadFailed"));
-    error.name = name;
-    return error;
-}
-
-function isNamedError(error: unknown, name: string) {
-    return error instanceof Error && error.name === name;
-}
-
 function abortReason(signal: AbortSignal) {
     return signal.reason instanceof Error ? signal.reason : new DOMException("Aborted", "AbortError");
 }
@@ -145,7 +165,11 @@ export async function resolveImageUrl(storageKey?: string, fallback = "") {
     const cached = objectUrls.get(storageKey);
     if (cached) return cached;
     const blob = await store.getItem<Blob>(storageKey);
-    if (!blob) return fallback;
+    if (!blob) {
+        const source = /^https?:\/\//i.test(fallback) ? fallback : await sourceStore.getItem<string>(storageKey) || fallback;
+        if (/^https?:\/\//i.test(source) && !useImageSaveStore.getState().tasks[storageKey]) void ensureImageSaved({ storageKey, url: source }).catch(() => undefined);
+        return source;
+    }
     const url = URL.createObjectURL(blob);
     objectUrls.set(storageKey, url);
     return url;
@@ -224,24 +248,39 @@ export async function setImageBlob(storageKey: string, blob: Blob) {
 
 export async function imageToDataUrl(image: { url?: string; dataUrl?: string; storageKey?: string }, options?: ImageReadOptions) {
     const url = image.dataUrl || (await resolveImageUrl(image.storageKey, image.url || ""));
-    if (!url || url.startsWith("data:")) return url;
-    return blobToDataUrl(await fetchImageBlob(url, options));
+    if (!image.storageKey && (!url || url.startsWith("data:"))) return url;
+    throwIfAborted(options?.signal);
+    const blob = await readImageBlob(image);
+    throwIfAborted(options?.signal);
+    return blobToDataUrl(blob);
 }
 
 export async function deleteStoredImages(keys: Iterable<string>) {
     await Promise.all(
         Array.from(new Set(keys)).map(async (key) => {
+            saveControllers.get(key)?.abort();
+            await pendingSaves.get(key)?.catch(() => undefined);
             const url = objectUrls.get(key);
             if (url) URL.revokeObjectURL(url);
             objectUrls.delete(key);
+            fileRevisions.delete(key);
             await deleteImagePreview(key);
             await store.removeItem(key);
+            await sourceStore.removeItem(key);
+            useImageSaveStore.setState((state) => {
+                const tasks = { ...state.tasks };
+                delete tasks[key];
+                return { tasks };
+            });
         }),
     );
 }
 
 export async function cleanupUnusedImages(usedData: unknown) {
+    const revision = fileRevision;
     const usedKeys = collectImageStorageKeys(usedData);
+    pendingSaves.forEach((_save, key) => usedKeys.add(key));
+    const candidates = new Set([...await store.keys(), ...await sourceStore.keys()]);
     await Promise.all([
         imageLogStore.iterate((value) => {
             collectImageStorageKeys(value, usedKeys);
@@ -251,12 +290,12 @@ export async function cleanupUnusedImages(usedData: unknown) {
         }),
     ]);
     const unused: string[] = [];
-    await store.iterate((_value, key) => {
-        if (!usedKeys.has(key)) unused.push(key);
-    });
+    for (const key of candidates) {
+        if (!usedKeys.has(key) && !pendingSaves.has(key) && (fileRevisions.get(key) || 0) <= revision) unused.push(key);
+    }
     const orphanPreviews: string[] = [];
     await previewStore.iterate((_value, key) => {
-        if (!usedKeys.has(key)) orphanPreviews.push(key);
+        if (!usedKeys.has(key) && !pendingSaves.has(key) && (fileRevisions.get(key) || 0) <= revision) orphanPreviews.push(key);
     });
     await Promise.all([deleteStoredImages(unused), ...orphanPreviews.map(deleteImagePreview)]);
 }

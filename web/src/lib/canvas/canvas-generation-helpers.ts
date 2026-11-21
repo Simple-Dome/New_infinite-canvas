@@ -1,7 +1,8 @@
 import { normalizeProtocolVideoConfig } from "@/lib/video-protocol";
 import { defaultConfig, resolveModelForCapability, type AiConfig } from "@/stores/use-config-store";
 import i18n from "@/i18n";
-import { ensureImagePreview, resolveImageUrl, uploadImage } from "@/services/image-storage";
+import { useImageSaveStore } from "@/stores/use-image-save-store";
+import { ensureImagePreview, ensureImageSaved, prepareGeneratedImage, resolveImageUrl, uploadImage } from "@/services/image-storage";
 import { resolveMediaUrl } from "@/services/file-storage";
 import { imageMetadata, referenceUrl } from "@/lib/canvas/canvas-node-factory";
 import type { NodeGenerationInput } from "@/components/canvas/canvas-node-generation";
@@ -50,14 +51,27 @@ export async function hydrateCanvasImages(nodes: CanvasNodeData[]) {
                 (metadata.images || []).map(async (image) => {
                     if (!image.content) return image;
                     void ensureImagePreview(image.storageKey);
-                    return { ...image, content: await resolveImageUrl(image.storageKey, image.content) };
+                    if (!image.storageKey && /^https?:\/\//i.test(image.content)) {
+                        const pending = await prepareGeneratedImage(image.content);
+                        return { ...image, storageKey: pending.storageKey };
+                    }
+                    const restored = { ...image, content: await resolveImageUrl(image.storageKey, image.content) };
+                    if (image.storageKey && !image.naturalWidth && !useImageSaveStore.getState().tasks[image.storageKey]) void ensureImageSaved({ storageKey: image.storageKey, url: image.content }).catch(() => undefined);
+                    return restored;
                 }),
             );
             if (metadata.storageKey) {
                 void ensureImagePreview(metadata.storageKey);
-                return { ...node, metadata: { ...metadata, content: await resolveImageUrl(metadata.storageKey, content), images } };
+                const restored = { ...node, metadata: { ...metadata, content: await resolveImageUrl(metadata.storageKey, content), images } };
+                if (!metadata.naturalWidth && !useImageSaveStore.getState().tasks[metadata.storageKey]) void ensureImageSaved({ storageKey: metadata.storageKey, url: content }).catch(() => undefined);
+                return restored;
             }
-            if (!content.startsWith("data:image/")) return node;
+            const primary = images.find((image) => image.id === metadata.primaryImageId);
+            if (/^https?:\/\//i.test(content)) {
+                const pending = primary?.content === content && primary.storageKey ? { storageKey: primary.storageKey } : await prepareGeneratedImage(content);
+                return { ...node, metadata: { ...metadata, storageKey: pending.storageKey, images } };
+            }
+            if (!content.startsWith("data:image/")) return { ...node, metadata: { ...metadata, images } };
             return { ...node, metadata: { ...metadata, ...imageMetadata(await uploadImage(content)) } };
         }),
     );

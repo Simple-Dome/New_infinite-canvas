@@ -2,7 +2,7 @@ import localforage from "localforage";
 
 import i18n from "@/i18n";
 import { getMediaBlob, resolveMediaUrl, setMediaBlob } from "@/services/file-storage";
-import { getImageBlob, resolveImageUrl, setImageBlob } from "@/services/image-storage";
+import { getImageBlob, readImageBlob, resolveImageUrl, setImageBlob } from "@/services/image-storage";
 import { downloadWebdavFile, uploadWebdavFile, WEBDAV_MANIFEST_FILE_NAME } from "@/services/webdav-sync";
 import type { Asset } from "@/stores/use-asset-store";
 import { useAssetStore } from "@/stores/use-asset-store";
@@ -232,8 +232,9 @@ async function uploadChangedFiles<T>(config: WebdavSyncConfig, domain: DomainKey
     const storageKeys = collectStorageKeys(data);
     let scanned = 0;
     for (const storageKey of storageKeys) {
-        const blob = storageKey.startsWith("image:") ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);
         const remoteFile = remoteFileMap.get(storageKey);
+        let blob = storageKey.startsWith("image:") ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);
+        if (!blob && !remoteFile && storageKey.startsWith("image:")) blob = await readImageBlob({ storageKey });
         if (!blob) {
             if (remoteFile) files.push(remoteFile);
             scanned += 1;

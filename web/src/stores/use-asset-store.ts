@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
 
+import { useImageSaveStore, type ImageSaveTask } from "@/stores/use-image-save-store";
 import { nanoid } from "nanoid";
 import { localForageStorage } from "@/lib/localforage-storage";
 import { cleanupUnusedImages, ensureImagePreview, previewUrlFor, resolveImageUrl, uploadImage } from "@/services/image-storage";
@@ -80,7 +81,7 @@ export const useAssetStore = create<AssetStore>()(
             addAsset: (asset) => {
                 const now = new Date().toISOString();
                 const id = nanoid();
-                set((state) => ({ assets: [{ ...asset, id, createdAt: now, updatedAt: now } as Asset, ...state.assets] }));
+                set((state) => ({ assets: [applySavedAsset({ ...asset, id, createdAt: now, updatedAt: now } as Asset, useImageSaveStore.getState().tasks), ...state.assets] }));
                 return id;
             },
             updateAsset: (id, patch) =>
@@ -107,8 +108,23 @@ export const useAssetStore = create<AssetStore>()(
             storage: assetStorage,
             partialize: (state) => ({ assets: state.assets }) as StorageValue<AssetStore>["state"],
             onRehydrateStorage: () => () => {
-                useAssetStore.setState({ hydrated: true });
+                useAssetStore.setState((state) => ({ hydrated: true, assets: state.assets.map((asset) => applySavedAsset(asset, useImageSaveStore.getState().tasks)) }));
             },
         },
     ),
 );
+
+// 素材与画布共用文件键；保存完成后更新预览，不重复下载或复制原图。
+function applySavedAsset(asset: Asset, tasks: Record<string, ImageSaveTask>): Asset {
+    if (asset.kind !== "image" || !asset.data.storageKey) return asset;
+    const image = tasks[asset.data.storageKey]?.image;
+    if (!image || asset.data.dataUrl === image.url) return asset;
+    const coverUrl = !asset.coverUrl || asset.coverUrl === asset.data.dataUrl ? image.url : asset.coverUrl;
+    return { ...asset, coverUrl, data: { ...asset.data, dataUrl: image.url, width: image.width, height: image.height, bytes: image.bytes, mimeType: image.mimeType } };
+}
+
+useImageSaveStore.subscribe(({ tasks }) => {
+    const state = useAssetStore.getState();
+    const assets = state.assets.map((asset) => applySavedAsset(asset, tasks));
+    if (assets.some((asset, index) => asset !== state.assets[index])) useAssetStore.setState({ assets });
+});

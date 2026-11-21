@@ -4,6 +4,8 @@ import { ChevronRight, Copy, Download, Group, Image as ImageIcon, Music2, Puzzle
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { formatBytes } from "@/lib/image-utils";
+import { ImageSaveStatus } from "@/components/image-save-status";
+import { recordImageDimensions } from "@/stores/use-image-save-store";
 import { pickImageSource } from "@/lib/image-thumbnail";
 import { previewUrlFor, subscribeImagePreviews, getImagePreviewRevision } from "@/services/image-storage";
 import { getNodeDefinition } from "@/lib/canvas/node-registry";
@@ -768,6 +770,7 @@ function ImageContent({
     const isBatchRoot = batchCount > 1;
     const primaryImageId = node.metadata?.primaryImageId || images[0]?.id;
     const primaryImage = images.find((image) => image.id === primaryImageId);
+    const [failedSource, setFailedSource] = useState<string>();
     const primaryContent = primaryImage?.content || node.metadata?.content;
     const primaryPreviewUrl = previewUrlFor(primaryImage?.storageKey || node.metadata?.storageKey);
     const primarySource = primaryContent
@@ -795,6 +798,12 @@ function ImageContent({
                     <img
                         src={primarySource}
                         alt={node.title}
+                        onLoad={(event) => {
+                            setFailedSource(undefined);
+                            if (!(primaryImage?.naturalWidth || node.metadata?.naturalWidth)) recordImageDimensions(primaryImage?.storageKey || node.metadata?.storageKey, event.currentTarget.naturalWidth, event.currentTarget.naturalHeight);
+                        }}
+                        onError={() => setFailedSource(primarySource)}
+                        style={failedSource === primarySource ? { visibility: "hidden" } : undefined}
                         draggable={false}
                         onDragStart={(event) => event.preventDefault()}
                         className={`pointer-events-none block h-full w-full select-none ${node.metadata?.freeResize ? "object-fill" : "object-contain"}`}
@@ -802,6 +811,9 @@ function ImageContent({
                 ) : (
                     <ImageSlotStatus image={primaryImage} />
                 )}
+            </div>
+            <div className="absolute bottom-2 left-2 z-30" style={{ color: theme.node.text }}>
+                <ImageSaveStatus storageKey={primaryImage?.storageKey || node.metadata?.storageKey} loadFailed={Boolean(primarySource && failedSource === primarySource)} />
             </div>
             {primaryImage?.status === "error" ? <BatchImageFailureActions placement="left" onRetry={() => onRetryBatchImage?.(primaryImage.id)} onDelete={() => onDeleteBatchImage?.(primaryImage.id)} /> : null}
             {primaryImage?.content ? (
@@ -835,6 +847,7 @@ function ExpandedImageCard({ node, image, index, scale, onView, onSetPrimary, on
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const { t } = useTranslation();
     useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
+    const [failedSource, setFailedSource] = useState<string>();
     const count = node.metadata?.images?.length || 0;
     const columns = Math.min(count, 4);
     const rows = Math.ceil(count / columns);
@@ -882,7 +895,11 @@ function ExpandedImageCard({ node, image, index, scale, onView, onSetPrimary, on
                 onView();
             }}
         >
-            {image.content ? <img src={source} alt={node.title} draggable={false} className="pointer-events-none h-full w-full select-none object-contain" /> : <ImageSlotStatus image={image} />}
+            {image.content ? <img src={source} alt={node.title} draggable={false} className="pointer-events-none h-full w-full select-none object-contain" style={failedSource === source ? { visibility: "hidden" } : undefined} onError={() => setFailedSource(source)} onLoad={(event) => {
+                setFailedSource(undefined);
+                if (!image.naturalWidth) recordImageDimensions(image.storageKey, event.currentTarget.naturalWidth, event.currentTarget.naturalHeight);
+            }} /> : <ImageSlotStatus image={image} />}
+            <div className="absolute bottom-2 left-2 z-30" style={{ color: theme.node.text }}><ImageSaveStatus storageKey={image.storageKey} loadFailed={Boolean(source && failedSource === source)} /></div>
             {image.content ? (
                 <div className="pointer-events-none absolute inset-x-2 top-2 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/node:pointer-events-auto group-hover/node:opacity-100">
                     <button type="button" className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border px-1.5 text-[10px] font-medium shadow-[0_6px_18px_rgba(15,23,42,.16)] backdrop-blur-md transition hover:scale-[1.02]" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.activeText }} title={t("common.download")} onClick={(event) => (event.stopPropagation(), onDownload())}>

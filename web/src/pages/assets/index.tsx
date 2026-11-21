@@ -4,10 +4,11 @@ import { App, Button, Card, Drawer, Empty, Form, Image, Input, Modal, Pagination
 import { saveAs } from "file-saver";
 import { useTranslation } from "react-i18next";
 
+import { ImageSaveStatus } from "@/components/image-save-status";
 import { useCopyText } from "@/hooks/use-copy-text";
 import { formatBytes, readFileAsDataUrl } from "@/lib/image-utils";
 import { getMediaBlob } from "@/services/file-storage";
-import { getImageBlob, getImagePreviewRevision, subscribeImagePreviews, uploadImage } from "@/services/image-storage";
+import { readImageBlob, getImagePreviewRevision, subscribeImagePreviews, uploadImage } from "@/services/image-storage";
 import { cn } from "@/lib/utils";
 import { assetCoverUrl, useAssetStore, type Asset, type AssetKind, type ImageAsset } from "@/stores/use-asset-store";
 import { exportAssets, readAssetPackage } from "./asset-transfer";
@@ -164,7 +165,11 @@ export default function AssetsPage() {
             message.warning(t("assets.noneToExport"));
             return;
         }
-        await exportAssets(validAssets, t("assets.packageName"));
+        try {
+            await exportAssets(validAssets, t("assets.packageName"));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : t("assets.downloadFailed"));
+        }
     };
 
     const importAssetZip = async (file?: File) => {
@@ -454,6 +459,7 @@ function AssetCard({ asset, onOpen, onEdit, onCopy, onDownload, onDelete }: { as
                     </div>
                 </div>
             </button>
+            {asset.kind === "image" ? <div className="px-4 pb-2"><ImageSaveStatus storageKey={asset.data.storageKey} /></div> : null}
             <div className="flex items-center gap-2 px-4 pb-4">
                 <Button size="small" onClick={onOpen}>
                     {t("common.view")}
@@ -544,12 +550,13 @@ function AssetDrawer({ asset, onClose, onCopy, onDownload }: { asset: Asset | nu
 }
 
 async function readAssetMediaBlob(asset: Extract<Asset, { kind: "image" | "video" }>) {
+    if (asset.kind === "image") return readImageBlob({ storageKey: asset.data.storageKey, dataUrl: asset.data.dataUrl || asset.coverUrl });
     const storageKey = asset.data.storageKey;
     if (storageKey) {
-        const stored = asset.kind === "image" ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);
+        const stored = await getMediaBlob(storageKey);
         if (stored) return stored;
     }
-    const url = asset.kind === "video" ? asset.data.url : asset.data.dataUrl || asset.coverUrl;
+    const url = asset.data.url;
     if (!url) return null;
     const response = await fetch(url);
     return response.ok ? response.blob() : null;
