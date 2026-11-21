@@ -8,6 +8,7 @@ import { getMediaBlob, resolveMediaUrl, uploadMediaFile, type UploadedFile } fro
 import { imageToDataUrl } from "@/services/image-storage";
 import { boolConfig, buildApiUrl, modelOptionName, resolveModelRequestConfig, resolveModelScript, withLocalProxy, type AiConfig } from "@/stores/use-config-store";
 import { runModelPlugin } from "./model-plugin";
+import { ApiAccessError, assertApiUrlAllowed } from "@/lib/api-access";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 import { getVideoProtocol, protocolVideoModels, protocolVideoSettings, validateProtocolVideo } from "@/lib/video-protocol";
@@ -58,6 +59,7 @@ export async function waitForVideoGenerationTask(config: AiConfig, task: VideoGe
             if (state.status === "completed") return state.result;
             if (state.status === "failed") throw videoTaskFailed(state.error);
         } catch (error) {
+            if (error instanceof ApiAccessError) throw error;
             const cause = error instanceof Error ? error.cause : undefined;
             const transient = axios.isAxiosError(cause) && !axios.isCancel(cause) && (!cause.response || [408, 429, 500, 502, 503, 504].includes(cause.response.status));
             if (!transient || options?.signal?.aborted) throw error;
@@ -79,6 +81,7 @@ function videoTaskFailed(message: string) {
 export async function createVideoGenerationTask(config: AiConfig, prompt: string, references: ReferenceImage[] = [], options?: VideoMediaOptions): Promise<VideoGenerationTask> {
     const selectedModel = (config.model || config.videoModel).trim();
     const requestConfig = resolveModelRequestConfig(config, selectedModel);
+    assertApiUrlAllowed(requestConfig.baseUrl);
     const script = resolveModelScript(config, selectedModel);
     if (!script) assertVideoConfig(requestConfig, requestConfig.model);
     validateProtocolVideo(requestConfig, prompt, references.length, options?.videos?.length || 0, options?.audios?.length || 0);
@@ -100,6 +103,7 @@ export async function pollVideoGenerationTask(config: AiConfig, task: VideoGener
         return result ? { status: "completed", result } : { status: "failed", error: apiText("pluginVideoExpired") };
     }
     const requestConfig = resolveModelRequestConfig(config, task.model);
+    assertApiUrlAllowed(requestConfig.baseUrl);
     assertVideoConfig(requestConfig, requestConfig.model);
     if (task.provider === "gemini") return pollGeminiVideoTask(requestConfig, task, options);
     return pollOpenAIVideoTask(requestConfig, task, options);
@@ -177,6 +181,7 @@ async function createOpenAIVideoTask(config: AiConfig, model: string, prompt: st
             if (!id) throw new Error(apiText("noVideoTaskId"));
             return { id, provider: "openai", model };
         } catch (error) {
+            if (error instanceof ApiAccessError) throw error;
             throw new Error(readAxiosError(error, apiText("videoTaskCreateFailed")));
         }
     }
@@ -230,12 +235,14 @@ async function createOpenAIVideoTask(config: AiConfig, model: string, prompt: st
         if (!id) throw new Error(apiText("noVideoTaskId"));
         return { id, provider: "openai", model };
     } catch (error) {
+        if (error instanceof ApiAccessError) throw error;
         throw new Error(readAxiosError(error, apiText("videoTaskCreateFailed")));
     }
 }
 
 async function uploadGrokReference(config: AiConfig, file: File, options?: RequestOptions) {
     const baseUrl = `${config.baseUrl.trim().replace(/\/+$/, "").replace(/\/v1$/i, "")}/api/canvas/r2/uploads`;
+    assertApiUrlAllowed(baseUrl);
     const clientFileId = nanoid();
     const request = { headers: { ...aiHeaders(config, "application/json"), "Idempotency-Key": nanoid() }, signal: options?.signal };
     try {
@@ -251,6 +258,7 @@ async function uploadGrokReference(config: AiConfig, file: File, options?: Reque
         if (!url || !/^https?:\/\//i.test(url)) throw new Error("中转站未返回有效的首帧图片 URL。");
         return url;
     } catch (error) {
+        if (error instanceof ApiAccessError) throw error;
         throw new Error(`首帧图片上传失败，请确认当前中转站已启用 R2 上传并允许浏览器跨域访问。${readAxiosError(error, "")}`);
     }
 }
@@ -271,6 +279,7 @@ async function pollOpenAIVideoTask(config: AiConfig, task: VideoGenerationTask, 
         if (["failed", "cancelled", "expired"].includes(video.status || "")) return { status: "failed", error: readApiErrorMessage(video.fail_reason || video.error?.message) || apiText("videoGenerationFailed") };
         return { status: "pending" };
     } catch (error) {
+        if (error instanceof ApiAccessError) throw error;
         throw new Error(await readVideoRequestError(error, apiText("videoTaskQueryFailed")), { cause: error });
     }
 }
@@ -282,6 +291,7 @@ async function videoResultFromUrl(url: string, options?: RequestOptions): Promis
         await assertVideoBlob(response.data);
         return { blob: response.data };
     } catch (error) {
+        if (error instanceof ApiAccessError) throw error;
         if (axios.isCancel(error) || options?.signal?.aborted) throw error;
         return { url, mimeType: "video/mp4" };
     }
@@ -315,6 +325,7 @@ async function createGeminiVideoTask(config: AiConfig, model: string, prompt: st
         if (!created.name) throw new Error(apiText("noVideoTaskId"));
         return { id: created.name, provider: "gemini", model };
     } catch (error) {
+        if (error instanceof ApiAccessError) throw error;
         throw new Error(readAxiosError(error, apiText("videoTaskCreateFailed")));
     }
 }
@@ -329,6 +340,7 @@ async function pollGeminiVideoTask(config: AiConfig, task: VideoGenerationTask, 
         const url = uri.includes("key=") ? uri : `${uri}${uri.includes("?") ? "&" : "?"}key=${config.apiKey}`;
         return { status: "completed", result: await videoResultFromUrl(url, options) };
     } catch (error) {
+        if (error instanceof ApiAccessError) throw error;
         throw new Error(await readVideoRequestError(error, apiText("videoTaskQueryFailed")), { cause: error });
     }
 }
@@ -340,6 +352,7 @@ function assertVideoConfig(config: AiConfig, model: string) {
 }
 
 function geminiVideoBaseUrl(config: Pick<AiConfig, "baseUrl">) {
+    assertApiUrlAllowed(config.baseUrl);
     const normalizedBaseUrl = config.baseUrl.trim().replace(/\/+$/, "");
     const lowerBaseUrl = normalizedBaseUrl.toLowerCase();
     return lowerBaseUrl.endsWith("/v1") || lowerBaseUrl.endsWith("/v1beta") ? normalizedBaseUrl : `${normalizedBaseUrl}/v1beta`;
@@ -379,6 +392,7 @@ async function referenceMediaToFile(item: { name: string; type?: string; url?: s
         try {
             blob = await (await fetch(url, { signal: options?.signal })).blob();
         } catch (error) {
+            if (error instanceof ApiAccessError) throw error;
             if (error instanceof DOMException && error.name === "AbortError") throw error;
             throw new Error(apiText(errorKey));
         }

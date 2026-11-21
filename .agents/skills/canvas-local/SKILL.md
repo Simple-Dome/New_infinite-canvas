@@ -1,12 +1,13 @@
 ---
 name: canvas-local
-description: 为 New_infinite-canvas 按公开发布域名和独立 API 上游参数检查源码契约，构建并验证本机 linux/amd64 静态前端镜像；支持 gptch.cloud、image.gptch.cloud、artworkers.online 和 tovyn.xyz 的独立 profile，在明确授权后按现场蓝绿拓扑发布到 newapi。用于本项目的本地打包、验收、发布和回滚，不用于 API、Uploads、数据库或其他后端服务。
+description: 为 New_infinite-canvas 默认从 origin/main 最新提交准备本机 linux/amd64 画布镜像，经授权发布到 newapi 上的统一入口 image.cherryai.cc。用于本地打包、验收、发布和回滚；旧站点仅按明确指定处理，不用于 API、Uploads 或数据库发布。
 ---
 
 # Canvas Local
 
-这是 New_infinite-canvas 的发布 skill。旧项目
-`/Users/ming/project/infinite-canvas/.agents/skills/canvas-local` 仍是另一份历史 skill，不能把它的源码路径、脚本路径或构建参数直接套到本仓库。
+源码仓库为 `/Users/ming/project/New_infinite-canvas`，远端为
+`git@github.com:Simple-Dome/New_infinite-canvas.git`。全局 `canvas-local`
+入口使用本 skill；旧项目 `/Users/ming/project/infinite-canvas` 不再作为默认发布源码。
 
 先读：
 
@@ -14,15 +15,24 @@ description: 为 New_infinite-canvas 按公开发布域名和独立 API 上游�
 2. [references/site-profiles.md](references/site-profiles.md)，确认目标站点和当前源码支持范围；
 3. [references/release-workflow.md](references/release-workflow.md)，按阶段执行。
 
+## 统一发布来源与目标
+
+- 正常发布的默认组合为 `origin/main` → `image.cherryai.cc` → SSH `newapi`（`root@144.34.129.161`）。用户说“发布 main”或“更新画布”时使用这个目标，不再要求从旧三站中选择。
+- 所有站点的普通发布都先刷新 `origin/main`，固定其最新完整 SHA 后构建；不再按域名选择 `codex/release-*`、`release/*`，也不从当前工作目录 HEAD 或任务名推断源码。
+- `gptch.cloud`、`image.gptch.cloud`、`artworkers.online`、`tovyn.xyz` 是历史 profile，仅在用户明确指定时使用。同一次多站发布共用一个源码 SHA，各站参数和部署记录按目标 profile 保存。
+- `image.cherryai.cc` 的模型 API 仅允许 `https://artworkers.online`、`https://tovyn.xyz`、`https://gptch.cloud`，通过构建变量 `VITE_API_ALLOWED_ORIGINS` 配置；`VITE_FIXED_API_BASE_URL` 留空，允许渠道在三者间选择。访问路径和文档地址仍按 profile 确定；现有容器和旧入口如何整合需按现场与具体方案实施。
+- 只有用户明确指定历史提交、tag、其他分支或回滚版本时才使用例外来源，并记录来源、完整 SHA 和原因。构建或验收失败时，不自动退回旧站点分支。
+
 ## 当前源码契约
 
 发布前必须以当前提交重新检查源码，不以历史 profile 或镜像 tag 代替：
 
 - 构建上下文是仓库根目录，前端位于 `web/`，Docker 构建使用 `web/bun.lock` 和 Bun，运行镜像是 Nginx，监听容器 `3000`。
-- 当前 `Dockerfile` 通过 `ARG/ENV` 接收 `VITE_BASE`、`VITE_FIXED_API_BASE_URL` 和 `VITE_DOCS_URL`，构建时必须显式传入并记录三者。
+- 当前 `Dockerfile` 通过 `ARG/ENV` 接收 `VITE_BASE`、`VITE_FIXED_API_BASE_URL`、`VITE_API_ALLOWED_ORIGINS` 和 `VITE_DOCS_URL`，构建时必须显式传入并记录四者。白名单是构建配置，不能用运行容器时的同名环境变量假装已改变浏览器产物。
+- 非白名单模型请求在发网络前拒绝，应用错误的 `status` 和 `response.status` 均为 400。按 HTTPS origin 精确匹配，拒绝 HTTP、额外端口、相似域名和 URL 用户信息；不能只靠渠道下拉框证明限制生效。此静态前端校验不是服务端 HTTP 响应，也不是任意用户脚本的安全沙箱。
 - 当前前端从 `VITE_FIXED_API_BASE_URL` 读取模型接口地址，从 `VITE_DOCS_URL` 读取文档地址；公开发布域名和 API 上游是两个独立字段。比如 `image.gptch.cloud` 的公开页面可以固定请求 `https://gptch.cloud`，不能把公开域名自动当成 API 地址。
 - `image.gptch.cloud` 的标准 profile 是：`PUBLIC_DOMAIN=image.gptch.cloud`、`VITE_BASE=/canvas/`、`VITE_FIXED_API_BASE_URL=https://gptch.cloud`。发布到该域名时，页面 Host 和模型请求 origin 必须分别保持这两个值。
-- 当前生产 Vite 产物使用 `/canvas/` base path；HTML、运行期 `config.js`、Logo、本地插件清单、React Router basename 和 Nginx `/canvas/` location 必须一起匹配。
+- 旧站点 profile 的 Vite 产物使用 `/canvas/` base path；统一入口的路径以新 profile 为准。HTML、运行期 `config.js`、Logo、本地插件清单、React Router basename 和 Nginx location 必须一起匹配，不能只改构建参数就假定根路径已支持。
 - 当前 `config.js` 只承载统计 ID，不承载 API Key、文档地址或上传凭据。禁止把真实 Key、生产 env 或存储凭据注入烟测容器或写入发布证据。
 
 如果用户要求的站点、公共路径或 API 地址不符合上述契约，先报告阻断原因；不要通过改 tag、运行期 env 或 Nginx 猜测来绕过。每个站点必须分别构建、分别记录和分别验收，不能只改 tag 冒充另一站点镜像。
@@ -37,7 +47,7 @@ description: 为 New_infinite-canvas 按公开发布域名和独立 API 上游�
 
 ## 发布顺序
 
-1. 解析 task ID，恢复 `.agents/state/tasks/<task-id>/process.md`，记录目标、源码完整 SHA、公共路径、动作范围和验收条件。
+1. 解析 task ID，恢复 `.agents/state/tasks/<task-id>/process.md`，按统一发布来源选择 `origin/main` 最新提交或用户明确指定的例外，记录来源、完整 SHA、目标、公共路径、动作范围和验收条件。
 2. 在干净 detached worktree 中归档精确提交；当前未提交修改不自动进入镜像。
 3. 运行源码契约 gate，确认目标域名和路径与当前代码实际消费的值一致；不满足就停止在本地准备阶段。
 4. 仅在本机 Docker daemon 和 Buildx endpoint 均确认后，执行 `linux/amd64 --load` 构建并记录 image ID、平台、归档大小和 SHA-256。

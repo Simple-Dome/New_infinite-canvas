@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        VITE_API_ALLOWED_ORIGINS: ${VITE_API_ALLOWED_ORIGINS-https://artworkers.online,https://tovyn.xyz,https://gptch.cloud}
     ports:
       - "3000:3000"
     restart: unless-stopped

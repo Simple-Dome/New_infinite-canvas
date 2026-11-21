@@ -4,6 +4,7 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 
 import { FIXED_API_BASE_URL } from "@/constant/env";
+import { API_ALLOWED_ORIGINS, assertApiUrlAllowed, isApiUrlAllowed } from "@/lib/api-access";
 import i18n from "@/i18n";
 
 export type ApiCallFormat = "openai" | "gemini" | "moai" | "grok" | "minimax";
@@ -79,21 +80,20 @@ export type ChannelCredentialsImportResult = {
 
 export const CONFIG_STORE_KEY = "infinite-canvas:ai_config_store";
 const CHANNEL_MODEL_SEPARATOR = "::";
-const OPENAI_BASE_URL = "https://api.openai.com";
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
+const DEFAULT_API_BASE_URL = API_ALLOWED_ORIGINS[0] || "";
 export const LOCAL_PROXY_PACKAGE = "@basketikun/canvas-proxy";
 export const DEFAULT_LOCAL_PROXY_URL = "http://127.0.0.1:23210";
 
 export const defaultConfig: AiConfig = {
     channelMode: "local",
-    baseUrl: OPENAI_BASE_URL,
+    baseUrl: DEFAULT_API_BASE_URL,
     apiKey: "",
     apiFormat: "openai",
     channels: [
         {
             id: "default",
             name: i18n.t("config.channels.defaultName"),
-            baseUrl: OPENAI_BASE_URL,
+            baseUrl: DEFAULT_API_BASE_URL,
             apiKey: "",
             apiFormat: "openai",
             models: [
@@ -151,7 +151,7 @@ type ConfigStore = {
     configTab: ConfigTabKey;
     shouldPromptContinue: boolean;
     updateConfig: <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
-    importChannelCredentials: (input: { baseUrl?: string | null; apiKey?: string | null }) => ChannelCredentialsImportResult;
+    importChannelCredentials: (input: { baseUrl?: string | null; apiKey?: string | null; activate?: boolean }) => ChannelCredentialsImportResult;
     updateWebdavConfig: <K extends keyof WebdavSyncConfig>(key: K, value: WebdavSyncConfig[K]) => void;
     isAiConfigReady: (config: AiConfig, model: string) => boolean;
     openConfigDialog: (shouldPromptContinue?: boolean, tab?: ConfigTabKey) => void;
@@ -308,43 +308,50 @@ export function createModelChannel(channel?: Partial<ModelChannel>): ModelChanne
 
 export function upsertChannelCredentials(
     config: AiConfig,
-    input: { baseUrl?: string | null; apiKey?: string | null },
+    input: { baseUrl?: string | null; apiKey?: string | null; activate?: boolean },
 ): ChannelCredentialsImportResult & { config: AiConfig } {
     const rawBaseUrl = input.baseUrl?.trim() || "";
     if (!rawBaseUrl) return { status: "missing-base-url", config };
-    if (!isHttpBaseUrl(rawBaseUrl)) return { status: "invalid-base-url", config };
+    if (!isApiUrlAllowed(rawBaseUrl)) return { status: "invalid-base-url", config };
 
     const apiKey = input.apiKey?.trim() || "";
     const baseUrl = fixedApiBaseUrl(normalizeImportedBaseUrl(rawBaseUrl));
+    if (!isApiUrlAllowed(baseUrl)) return { status: "invalid-base-url", config };
     const matchingIndex = config.channels.findIndex((channel) => normalizedBaseUrlKey(channel.baseUrl) === normalizedBaseUrlKey(baseUrl));
-
-    if (matchingIndex >= 0) {
-        const existing = config.channels[matchingIndex];
-        if (existing.baseUrl === baseUrl && (!apiKey || existing.apiKey === apiKey)) {
-            return { status: "updated", channelName: existing.name, config };
-        }
-        const updated = { ...existing, baseUrl, ...(apiKey ? { apiKey } : {}) };
-        const channels = config.channels.map((channel, index) => (index === matchingIndex ? updated : channel));
-        return { status: "updated", channelName: existing.name, config: { ...config, channels } };
+    const existing = config.channels[matchingIndex];
+    if (existing && !input.activate && existing.baseUrl === baseUrl && (!apiKey || existing.apiKey === apiKey)) {
+        return { status: "updated", channelName: existing.name, config };
     }
-
-    const channel = createModelChannel({
+    const channel = existing ? { ...existing, baseUrl, ...(apiKey ? { apiKey } : {}) } : createModelChannel({
         name: importedChannelName(baseUrl),
         baseUrl,
         apiKey,
         apiFormat: "openai",
         models: [],
     });
-    return { status: "created", channelName: channel.name, config: { ...config, channels: [...config.channels, channel] } };
-}
-
-function isHttpBaseUrl(baseUrl: string) {
-    try {
-        const url = new URL(baseUrl);
-        return (url.protocol === "http:" || url.protocol === "https:") && Boolean(url.hostname);
-    } catch {
-        return false;
+    const channels = existing ? config.channels.map((item, index) => index === matchingIndex ? channel : item) : [...config.channels, channel];
+    let nextConfig = { ...config, channels };
+    if (input.activate) {
+        const selectModel = (capability: ModelCapability, value: string) => {
+            const models = channel.models.filter((model) => model.capability === capability);
+            const model = models.find((item) => item.name === modelOptionName(value)) || models[0];
+            return model ? encodeChannelModel(channel.id, model.name) : "";
+        };
+        nextConfig = {
+            ...nextConfig,
+            channels: [channel, ...channels.filter((item) => item.id !== channel.id)],
+            baseUrl: channel.baseUrl,
+            apiKey: channel.apiKey,
+            apiFormat: channel.apiFormat,
+            models: modelOptionsFromChannels(channels),
+            model: selectModel("image", config.model),
+            imageModel: selectModel("image", config.imageModel),
+            videoModel: selectModel("video", config.videoModel),
+            textModel: selectModel("text", config.textModel),
+            audioModel: selectModel("audio", config.audioModel),
+        };
     }
+    return { status: existing ? "updated" : "created", channelName: channel.name, config: nextConfig };
 }
 
 function normalizedBaseUrlKey(baseUrl: string) {
@@ -487,11 +494,8 @@ export function normalizeAiConfig(input: Partial<AiConfig>): AiConfig {
     };
 }
 
-export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {
-    if (FIXED_API_BASE_URL) return FIXED_API_BASE_URL;
-    if (apiFormat === "moai" || apiFormat === "grok" || apiFormat === "minimax") return "";
-    if (apiFormat === "gemini") return GEMINI_BASE_URL;
-    return OPENAI_BASE_URL;
+export function defaultBaseUrlForApiFormat(_apiFormat: ApiCallFormat) {
+    return FIXED_API_BASE_URL || DEFAULT_API_BASE_URL;
 }
 
 export function fixedApiBaseUrl(baseUrl: string) {
@@ -510,7 +514,9 @@ export function buildApiUrl(baseUrl: string, path: string) {
     const normalizedBaseUrl = fixedApiBaseUrl(baseUrl).replace(/\/+$/, "");
     const lowerBaseUrl = normalizedBaseUrl.toLowerCase();
     const apiBaseUrl = lowerBaseUrl.endsWith("/v1") ? normalizedBaseUrl : `${normalizedBaseUrl}/v1`;
-    return withLocalProxy(`${apiBaseUrl}${path}`);
+    const url = `${apiBaseUrl}${path}`;
+    assertApiUrlAllowed(url);
+    return withLocalProxy(url);
 }
 
 export function normalizeLocalProxyUrl(value: string) {

@@ -2,6 +2,26 @@
 
 这里的站点信息只用于选择和发现目标，不是当前生产拓扑的事实来源。发布前必须在 `newapi` 现场重新读取 Docker、Nginx、DNS/TLS、端口、网络和锁；不能用历史容器名、镜像创建时间或 tag 判断“最新”。
 
+所有 profile 的普通发布源码统一为 `git@github.com:Simple-Dome/New_infinite-canvas.git` 的 `origin/main` 最新提交。站点 profile 只决定构建和部署参数，不再选择各站的发布分支；同一次多站发布固定同一个源码 SHA。
+
+## 默认统一入口
+
+| 项目 | 值 |
+| --- | --- |
+| 源码 | `origin/main` 最新完整 SHA |
+| SITE_KEY | `image-cherryai-cc` |
+| PUBLIC_DOMAIN | `image.cherryai.cc` |
+| SSH | `newapi`（本机配置为 `root@144.34.129.161:22`，发布前重新核对） |
+| 访问路径 / VITE_BASE | 待用户确定，不自动沿用旧站 `/canvas/` |
+| VITE_FIXED_API_BASE_URL | 空字符串，允许在白名单内选择渠道 |
+| VITE_API_ALLOWED_ORIGINS | `https://artworkers.online,https://tovyn.xyz,https://gptch.cloud` |
+| VITE_DOCS_URL | 待确认，不自动复用旧三站文档地址 |
+| 容器、端口、网络、Nginx 和回滚点 | 发布前只读发现，不能复用旧站名冒充现场事实 |
+
+这是普通 main 发布的默认目标，域名后缀是 `.cc`。代码或旧文档中的 `image.cherryai.cn` 不是此 profile；发布前检查相关访问入口配置，不能把两者混用。访问路径和文档地址完善后再准备镜像。
+
+模型白名单通过构建变量配置，默认就是上述三站。按 URL 的 HTTPS origin 精确匹配，允许其下 API 路径（如 `/v1`、`/v1beta`）；空列表或无效配置拒绝所有模型请求，不回退到官方 API。被拒绝的请求在发送前抛出 400 应用错误，不会产生远端 HTTP 响应。R2 预签名素材上传、返回的图片/视频 URL、WebDAV 与本地 Agent 属于各自的独立用途，不当作渠道 API origin。
+
 ## 目标主机
 
 | 项目 | 值 |
@@ -10,9 +30,9 @@
 | 本机构建平台 | `linux/amd64` |
 | 当前镜像容器端口 | `3000/tcp` |
 | 当前镜像运行方式 | Nginx 静态前端，无画布数据卷 |
-| 当前源码公共路径 | `/canvas/` |
+| 旧站点公共路径 | `/canvas/`；默认统一入口另按上面的 profile 确定 |
 
-## 当前源码支持矩阵
+## 历史站点 profile（仅明确指定时使用）
 
 | SITE_KEY | 公开发布域名 | API 上游 | 当前状态 |
 | --- | --- | --- | --- |
@@ -21,7 +41,7 @@
 | `artworkers-online` | `artworkers.online` | `https://artworkers.online` | 允许进入本地构建 gate |
 | `tovyn-xyz` | `tovyn.xyz` | `https://tovyn.xyz` | 允许进入本地构建 gate |
 
-同一提交在每个公开域名必须各自构建独立镜像。`VITE_BASE` 统一为 `/canvas/`；`VITE_FIXED_API_BASE_URL` 按 API 上游 profile 填写，`VITE_DOCS_URL` 按公开站点 profile 单独填写。只有在 HTML、静态资源、Router basename、插件清单和 Nginx `/canvas/` 路由全部通过后，公开站点才算支持。
+以上旧站点在每个公开域名各自构建独立镜像。它们的 `VITE_BASE` 为 `/canvas/`；`VITE_FIXED_API_BASE_URL` 按 API 上游 profile 填写，`VITE_DOCS_URL` 按公开站点 profile 单独填写。只有在 HTML、静态资源、Router basename、插件清单和对应 Nginx 路由全部通过后，公开站点才算支持。
 
 `image-gptch-cloud` 的参数关系必须保持如下，不能按页面 Host 自动推导 API 地址：
 

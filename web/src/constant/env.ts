@@ -3,6 +3,8 @@ export const APP_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSIO
 // 发布 profile 可在构建时锁定所有渠道的上游地址。
 export const FIXED_API_BASE_URL = (import.meta.env.VITE_FIXED_API_BASE_URL || "").trim().replace(/\/+$/, "");
 
+export const API_ALLOWED_ORIGINS_CONFIG = import.meta.env.VITE_API_ALLOWED_ORIGINS ?? "https://artworkers.online,https://tovyn.xyz,https://gptch.cloud";
+
 // 暂时隐藏页面与画布顶部的插件、文档、版本、GitHub 和 Agent 入口，后续改为 true 恢复。
 export const CANVAS_EXTRA_ACTIONS_VISIBLE = false;
 

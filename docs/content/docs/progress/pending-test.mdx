@@ -5,6 +5,14 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- Cherry 统一入口联动：从 `gptch.cloud`、`artworkers.online`、`tovyn.xyz` 的「image 生图」进入 `image.cherryai.cc` 时，用 URL 的 `baseUrl` 指定来源 API 域名；匹配已有渠道或新建空 Key 渠道，并激活对应的图像、视频、文本、音频默认模型，不覆盖其他站点的 Key。导入后清理地址参数；非法域名或只有 Key 时保持配置不变并提示“请输入对应的域名”。Cherry 默认/经典主题均已接入；统一域名尚未生产部署。
+
+- 模型 API 白名单：`VITE_API_ALLOWED_ORIGINS` 为构建环境变量，默认 `https://artworkers.online,https://tovyn.xyz,https://gptch.cloud`；统一入口构建时 `VITE_FIXED_API_BASE_URL` 留空。渠道地址从三站中选择，初始渠道使用白名单第一项；修改白名单需重新构建镜像。空值或无效白名单配置应拒绝所有模型请求，不回退官方 API。
+- 拒绝行为：旧配置、配置文件、URL 参数及脚本请求助手中的非白名单 API 地址，应在发网络前抛出 `status=400`、`response.status=400` 的应用错误，并统一提示“请输入对应的域名”。人工验收 OpenAI、Gemini、Grok、MiniMax、Moai 的列表、图文音视频生成、视频查询与本地代理开启场景；HTTP、额外端口、相似域名、URL 用户信息均不得通过。三站 `/v1`、`/v1beta` 路径应正常请求，R2 预签名上传及结果媒体下载保持独立。当前是浏览器直连前的校验，不是服务端 HTTP 网关，也不是任意 JavaScript 的安全沙箱。
+- 已通过 16 个定向用例（含原有 GIF 请求回归），使用拦截响应、无真实 API 请求；新增白名单测试覆盖各协议拒绝、三站模型列表、代理前检查及脚本助手。本机隔离浏览器已验证三站桌面/手机跳转、渠道默认模型与 Key 隔离、URL 清理、非法域名提示及模型列表真实请求 origin；使用合成数据与拦截响应。尚未执行画布类型检查、生产构建、真实账户生成验收或生产发布。
+
+- 画布发布来源统一：全局与仓库内 `canvas-local` 均默认从本仓库 `origin/main` 最新完整 SHA 准备发布，同一次多站发布使用同一个 SHA；下次发布时核对不会选取当前工作分支或旧站点发布分支，仅明确指定版本或回滚时使用例外。普通发布目标已确定为 `newapi` 上的 `image.cherryai.cc`（`.cc`），旧站点仅明确指定时使用。此次只更新技能与流程文档，未构建或部署；新入口的访问路径、文档地址及容器整合待完善，API 策略见白名单条目。已检查 TODO，无对应已完成条目需要迁移。
+
 - Organization npm package preparation: @cherryai/canvas-agent retains the upstream MIT notice and uses organization-scoped install/update commands. The authorized agent-only build passed and the package manifest was reviewed; the frontend was not built. Publishing is handed off through canvas-agent/README.md to a colleague with organization permissions; verify registry version, integrity, and installation after upload.
 - Standalone canvas control MCP: run this checkout's built `mcp --control`; confirm loopback-only HTTP and stdio start together without initializing built-in AI conversations, workspace, history, or Skills. Check production, local, and subpath site roots; reject other origins, invalid credentials, and protocol mismatches. This mode is not yet published to npm.
 - Control grants and isolation: explicitly authorize the current canvas before exposing its contents; read-only grants cannot edit, and editing cannot bypass generation consent through batches or autoRun. Focus changes must not retarget tools. Project navigation, reload, page close, disconnect, or MCP exit must invalidate the grant without transferring control to another page.

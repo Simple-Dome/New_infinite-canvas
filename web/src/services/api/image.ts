@@ -1,6 +1,7 @@
 import axios from "axios";
 
 import i18n from "@/i18n";
+import { ApiAccessError, assertApiUrlAllowed } from "@/lib/api-access";
 import { buildApiUrl, resolveModelRequestConfig, resolveModelScript, withLocalProxy, type AiConfig, type ModelChannel } from "@/stores/use-config-store";
 import { normalizePluginImages, runModelPlugin } from "./model-plugin";
 import { nanoid } from "nanoid";
@@ -345,6 +346,7 @@ function geminiModelName(model: string) {
 
 function geminiApiUrl(config: Pick<AiConfig, "baseUrl" | "model">, action?: "generateContent" | "streamGenerateContent") {
     const baseUrl = geminiBaseUrl(config);
+    assertApiUrlAllowed(baseUrl);
     if (!action) return withLocalProxy(`${baseUrl}/models`);
     return withLocalProxy(`${baseUrl}/models/${encodeURIComponent(geminiModelName(config.model))}:${action}`);
 }
@@ -705,6 +707,7 @@ function parseGeminiImagePayload(payload: GeminiPayload) {
 
 export async function requestGeneration(config: AiConfig, prompt: string, options?: RequestOptions) {
     const requestConfig = resolveModelRequestConfig(config, config.model || config.imageModel);
+    assertApiUrlAllowed(requestConfig.baseUrl);
     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
     const script = resolveModelScript(config, config.model || config.imageModel);
     if (script) {
@@ -721,6 +724,7 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
             });
             return normalizePluginImages(result, params.output_format).map((dataUrl) => ({ id: nanoid(), dataUrl }));
         } catch (error) {
+            if (error instanceof ApiAccessError) throw error;
             throw new Error(readAxiosError(error, apiText("requestFailed")));
         }
     }
@@ -728,6 +732,7 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
         try {
             return await requestGeminiImages(requestConfig, prompt, [], n, options);
         } catch (error) {
+            if (error instanceof ApiAccessError) throw error;
             throw new Error(readAxiosError(error, apiText("requestFailed")));
         }
     }
@@ -752,12 +757,14 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
         const images = await parseImagePayload(response.data, params.output_format);
         return images;
     } catch (error) {
+        if (error instanceof ApiAccessError) throw error;
         throw new Error(readAxiosError(error, apiText("requestFailed")));
     }
 }
 
 export async function requestEdit(config: AiConfig, prompt: string, references: ReferenceImage[], options?: RequestOptions) {
     const requestConfig = resolveModelRequestConfig(config, config.model || config.imageModel);
+    assertApiUrlAllowed(requestConfig.baseUrl);
     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
     const requestPrompt = buildImageReferencePromptText(prompt, references);
     const script = resolveModelScript(config, config.model || config.imageModel);
@@ -776,6 +783,7 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
             });
             return normalizePluginImages(result, params.output_format).map((dataUrl) => ({ id: nanoid(), dataUrl }));
         } catch (error) {
+            if (error instanceof ApiAccessError) throw error;
             throw new Error(readAxiosError(error, apiText("requestFailed")));
         }
     }
@@ -783,6 +791,7 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
         try {
             return await requestGeminiImages(requestConfig, requestPrompt, references, n, options);
         } catch (error) {
+            if (error instanceof ApiAccessError) throw error;
             throw new Error(readAxiosError(error, apiText("requestFailed")));
         }
     }
@@ -806,12 +815,14 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
         const images = await parseImagePayload(response.data, params.output_format);
         return images;
     } catch (error) {
+        if (error instanceof ApiAccessError) throw error;
         throw new Error(readAxiosError(error, apiText("requestFailed")));
     }
 }
 
 export async function requestImageQuestion(config: AiConfig, messages: AiTextMessage[], onDelta: (text: string) => void, options?: RequestOptions) {
     const requestConfig = resolveModelRequestConfig(config, config.model || config.textModel);
+    assertApiUrlAllowed(requestConfig.baseUrl);
     const script = resolveModelScript(config, config.model || config.textModel);
     if (script) {
         try {
@@ -827,6 +838,7 @@ export async function requestImageQuestion(config: AiConfig, messages: AiTextMes
             if (text === apiText("noContent")) onDelta(text);
             return text;
         } catch (error) {
+            if (error instanceof ApiAccessError) throw error;
             throw new Error(readAxiosError(error, apiText("requestFailed")));
         }
     }
@@ -844,11 +856,13 @@ export async function requestImageQuestion(config: AiConfig, messages: AiTextMes
         if (answer === apiText("noContent")) onDelta(answer);
         return answer;
     } catch (error) {
+        if (error instanceof ApiAccessError) throw error;
         throw new Error(readAxiosError(error, apiText("requestFailed")));
     }
 }
 
 export async function fetchImageModels(config: Pick<AiConfig, "baseUrl" | "apiKey" | "apiFormat">) {
+    assertApiUrlAllowed(config.baseUrl);
     try {
         if (config.apiFormat === "gemini") {
             const response = await axios.get<GeminiPayload>(geminiApiUrl({ ...defaultGeminiConfig, ...config }), { headers: geminiHeaders({ ...defaultGeminiConfig, ...config }) });
@@ -868,6 +882,7 @@ export async function fetchImageModels(config: Pick<AiConfig, "baseUrl" | "apiKe
             .filter((id): id is string => Boolean(id))
             .sort((a, b) => a.localeCompare(b));
     } catch (error) {
+        if (error instanceof ApiAccessError) throw error;
         throw new Error(readAxiosError(error, apiText("modelReadFailed")));
     }
 }

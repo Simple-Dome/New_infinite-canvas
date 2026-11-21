@@ -1,9 +1,10 @@
-import { Button, Drawer, Input, Segmented, Select, Space } from "antd";
+import { App, Button, Drawer, Input, Segmented, Select, Space } from "antd";
 import { ListPlus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { FIXED_API_BASE_URL } from "@/constant/env";
+import { API_ALLOWED_ORIGINS, assertApiUrlAllowed } from "@/lib/api-access";
 import { defaultBaseUrlForApiFormat, guessCapability, normalizeChannelModels, type ApiCallFormat, type ChannelModel, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
 import { protocolVideoModels } from "@/lib/video-protocol";
 import { ModelScriptEditor } from "./model-script-editor";
@@ -12,6 +13,7 @@ import { ModelSelectModal } from "./model-select-modal";
 type ScriptTarget = { name: string; capability: ModelCapability; value: string };
 
 export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: boolean; channel: ModelChannel | null; onSave: (channel: ModelChannel) => void; onClose: () => void }) {
+    const { message } = App.useApp();
     const { t } = useTranslation();
     const [draft, setDraft] = useState<ModelChannel | null>(channel);
     const [selectOpen, setSelectOpen] = useState(false);
@@ -50,6 +52,12 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
     const removeModel = (name: string) => setModels(draft.models.filter((model) => model.name !== name));
 
     const save = () => {
+        try {
+            assertApiUrlAllowed(FIXED_API_BASE_URL || draft.baseUrl.trim());
+        } catch (error) {
+            message.error((error as Error).message);
+            return;
+        }
         onSave({ ...draft, name: draft.name.trim() || t("config.channels.unnamed"), baseUrl: FIXED_API_BASE_URL || draft.baseUrl.trim(), models: normalizeChannelModels(draft.models) });
         onClose();
     };
@@ -81,7 +89,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
                 </label>
                 <label className="block md:col-span-2">
                     <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.baseUrl")}</span>
-                    <Input value={FIXED_API_BASE_URL || draft.baseUrl} disabled={Boolean(FIXED_API_BASE_URL)} onChange={(event) => patch({ baseUrl: event.target.value })} placeholder="https://api.example.com" />
+                    {FIXED_API_BASE_URL ? <Input value={FIXED_API_BASE_URL} disabled /> : <Select className="w-full" value={draft.baseUrl || undefined} options={API_ALLOWED_ORIGINS.map((value) => ({ label: value, value }))} onChange={(baseUrl) => patch({ baseUrl })} />}
                 </label>
                 <label className="block md:col-span-2">
                     <span className="mb-1 block text-sm font-medium">API Key</span>

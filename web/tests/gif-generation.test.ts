@@ -28,7 +28,7 @@ const config = {
     size: "invalid-static-size",
     quality: "max",
     background: "transparent",
-    channels: [{ id: "images", name: "Images", baseUrl: "https://example.invalid", apiKey: "test-key", apiFormat: "openai" as const, models: [{ name: "gpt-image-2.6", capability: "image" as const }] }],
+    channels: [{ id: "images", name: "Images", baseUrl: "https://artworkers.online", apiKey: "test-key", apiFormat: "openai" as const, models: [{ name: "gpt-image-2.6", capability: "image" as const }] }],
 };
 
 beforeEach(() => {
