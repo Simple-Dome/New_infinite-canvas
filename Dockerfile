@@ -6,6 +6,10 @@ COPY web/package.json web/bun.lock ./
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --cache-dir=/root/.bun/install/cache
 ARG VITE_BASE=/canvas/
 ENV VITE_BASE=${VITE_BASE}
+ARG VITE_APP_NAME=cherryAI
+ENV VITE_APP_NAME=${VITE_APP_NAME}
+ARG VITE_APP_LOGO=🍒
+ENV VITE_APP_LOGO=${VITE_APP_LOGO}
 ARG VITE_FIXED_API_BASE_URL=
 ENV VITE_FIXED_API_BASE_URL=${VITE_FIXED_API_BASE_URL}
 ARG VITE_API_ALLOWED_ORIGINS=https://artworkers.online,https://tovyn.xyz,https://gptch.cloud

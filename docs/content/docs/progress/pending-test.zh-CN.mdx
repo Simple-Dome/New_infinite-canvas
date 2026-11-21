@@ -5,6 +5,8 @@ description: 当前版本已实现但仍需人工验证的变更项
 
 # 待测试
 
+- 站点品牌环境变量：`VITE_APP_NAME` 配置名称（默认 `cherryAI`），`VITE_APP_LOGO` 配置 Emoji 标识（默认 `🍒`，留空隐藏），统一生成顶部导航、首页主标题、HTML 初始标题、浏览器标题和页签 SVG 图标；中英文使用同一品牌。开发时参考 `web/.env.example` 写入 `web/.env.local`；Docker 通过同名 `--build-arg` 或本机构建 Compose 的构建参数传入。配置在 Vite 构建时生效，修改后需要重新构建镜像，容器运行期变量不会改变已生成的品牌。已整理为独立发布候选，生产尚未更新；待验收默认值、自定义名称/Emoji、空标识、中英文、浅深主题及桌面/手机显示。
+
 - Cherry 统一入口联动：从 `gptch.cloud`、`artworkers.online`、`tovyn.xyz` 的「image 生图」进入 `image.cherryai.cc` 时，用 URL 的 `baseUrl` 指定来源 API 域名；匹配已有渠道或新建空 Key 渠道，并激活对应的图像、视频、文本、音频默认模型，不覆盖其他站点的 Key。导入后清理地址参数；非法域名或只有 Key 时保持配置不变并提示“请输入对应的域名”。Cherry 默认/经典主题均已接入；统一域名尚未生产部署。
 
 - 模型 API 白名单：`VITE_API_ALLOWED_ORIGINS` 为构建环境变量，默认 `https://artworkers.online,https://tovyn.xyz,https://gptch.cloud`；统一入口构建时 `VITE_FIXED_API_BASE_URL` 留空。渠道地址从三站中选择，初始渠道使用白名单第一项；修改白名单需重新构建镜像。空值或无效白名单配置应拒绝所有模型请求，不回退官方 API。

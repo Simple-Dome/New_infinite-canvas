@@ -5,6 +5,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
+        VITE_APP_NAME: ${VITE_APP_NAME:-cherryAI}
+        VITE_APP_LOGO: ${VITE_APP_LOGO-🍒}
         VITE_API_ALLOWED_ORIGINS: ${VITE_API_ALLOWED_ORIGINS-https://artworkers.online,https://tovyn.xyz,https://gptch.cloud}
     ports:
       - "3000:3000"

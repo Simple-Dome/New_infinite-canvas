@@ -1,3 +1,5 @@
+import { APP_TITLE } from "@/constant/env";
+
 export default {
     imageSave: {
         saving: "Saving to browser", retry: "Local save failed. Retry saving", loadFailed: "Image failed to load",
@@ -15,6 +17,7 @@ export default {
         stage: { preparing: "Preparing and optimizing images", uploading: "Uploading and submitting task", generating: "Waiting for video generation", downloading: "Downloading video", saving: "Saving locally" },
     },
     meta: {
+        title: APP_TITLE,
         description: "An infinite canvas creation tool",
     },
     theme: { toggle: "Toggle theme" },

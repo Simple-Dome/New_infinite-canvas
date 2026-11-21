@@ -1,4 +1,5 @@
 export const APP_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ || "dev" : "dev";
+export const APP_TITLE = typeof __APP_TITLE__ !== "undefined" ? __APP_TITLE__ : "🍒cherryAI";
 
 // 发布 profile 可在构建时锁定所有渠道的上游地址。
 export const FIXED_API_BASE_URL = (import.meta.env.VITE_FIXED_API_BASE_URL || "").trim().replace(/\/+$/, "");
