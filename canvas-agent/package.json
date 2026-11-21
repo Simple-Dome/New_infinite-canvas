@@ -1,5 +1,5 @@
 {
-  "name": "@basketikun/canvas-agent",
+  "name": "@cherryai/canvas-agent",
   "version": "0.6.0",
   "license": "MIT",
   "type": "module",
@@ -11,10 +11,13 @@
   "files": [
     "dist",
     "agent-instructions.md",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "dev": "tsx src/index.ts",
+    "dev:control": "tsx src/index.ts mcp --control",
+    "test:control": "tsx --test src/canvas/control.test.ts src/canvas/session.test.ts",
     "debug": "tsx src/index.ts --debug",
     "test": "tsx --test src/config.test.ts src/canvas/operations.test.ts src/canvas/session.test.ts src/agent/codex-client.test.ts src/agent/codex-history.test.ts src/agent/message-metadata.test.ts src/skills/store.test.ts src/utils/agent-runtime.test.ts",
     "build": "tsc -p tsconfig.json",
@@ -26,6 +29,7 @@
     "@openai/codex": "0.146.0",
     "express": "^5.1.0",
     "gray-matter": "^4.0.3",
+    "open": "^10.2.0",
     "strip-ansi": "7.2.0",
     "winston": "^3.19.0",
     "yaml": "^2.9.0",
@@ -41,6 +45,17 @@
     "node": ">=18"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "description": "Local MCP server for controlling CherryAI Infinite Canvas through explicitly authorized browser sessions.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Simple-Dome/New_infinite-canvas.git",
+    "directory": "canvas-agent"
+  },
+  "homepage": "https://github.com/Simple-Dome/New_infinite-canvas/tree/main/canvas-agent#readme",
+  "bugs": {
+    "url": "https://github.com/Simple-Dome/New_infinite-canvas/issues"
   }
 }

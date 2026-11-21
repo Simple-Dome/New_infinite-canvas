@@ -1,6 +1,11 @@
 #!/usr/bin/env node
-import { startHttpServer } from "./server/http.js";
-import { startMcpServer } from "./server/mcp.js";
-
-if (process.argv[2] === "mcp") await startMcpServer();
-else startHttpServer();
+if (process.argv[2] === "mcp" && process.argv.includes("--control")) {
+    const { startControlMcpServer } = await import("./server/control-mcp.js");
+    await startControlMcpServer();
+} else if (process.argv[2] === "mcp") {
+    const { startMcpServer } = await import("./server/mcp.js");
+    await startMcpServer();
+} else {
+    const { startHttpServer } = await import("./server/http.js");
+    startHttpServer();
+}

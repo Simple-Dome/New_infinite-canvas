@@ -530,6 +530,44 @@ test("切换活动线程会清除上一线程的实时快照", (t) => {
     assert.deepEqual(client.events("agent_event"), []);
 });
 
+test("控制目标不跟随焦点，结果必须匹配授权且先更新权威快照", async (t) => {
+    const session = new CanvasSession();
+    const first = connect(session, "first");
+    const second = connect(session, "second");
+    t.after(() => { first.close(); second.close(); });
+    session.updateState(snapshot("project-first"), "first");
+    session.updateState(snapshot("project-second"), "second");
+    session.activateClient("second");
+    const target = { clientId: "first", projectId: "project-first", grantId: "grant-first", validate() {}, validateOps: (ops: unknown) => ops as unknown[] };
+    const pending = session.callTool("canvas_get_state", {}, target);
+    const call = first.event("tool_call");
+    const requestId = String(field(call, "requestId"));
+    assert.equal(second.event("tool_call"), undefined);
+    assert.equal(session.resolveResult("first", { requestId, grantId: "wrong", projectId: "project-first", snapshot: snapshot("project-first") }), false);
+    assert.equal(session.isControlRequestPending(requestId, "first", "grant-first"), true);
+    const updated = { ...snapshot("project-first"), title: "更新后的画布" };
+    assert.equal(session.resolveResult("first", { requestId, grantId: "grant-first", projectId: "project-first", snapshot: updated, result: { ok: true } }), true);
+    await pending;
+    assert.equal(session.canvasStateForClient("first")?.title, "更新后的画布");
+});
+
+test("取消控制请求后不接受迟到结果，也不转交其他标签页", async (t) => {
+    const session = new CanvasSession();
+    const client = connect(session, "first");
+    t.after(() => client.close());
+    session.updateState(snapshot("project"), "first");
+    const abort = new AbortController();
+    const target = { clientId: "first", projectId: "project", grantId: "grant", signal: abort.signal, validate() {}, validateOps: (ops: unknown) => ops as unknown[] };
+    const pending = session.callTool("canvas_get_state", {}, target);
+    const rejected = assert.rejects(pending, /结果未知/);
+    const requestId = String(field(client.event("tool_call"), "requestId"));
+    abort.abort();
+    await rejected;
+    assert.equal(session.isControlRequestPending(requestId, "first", "grant"), false);
+    assert.equal(field(client.event("tool_cancel"), "requestId"), requestId);
+    assert.equal(session.resolveResult("first", { requestId, projectId: "project", grantId: "grant", snapshot: snapshot("project") }), false);
+});
+
 /** 创建用于测试的画布 SSE 连接。 */
 function connect(session: CanvasSession, clientId: string, activeThreadId = "") {
     const response = new FakeSseResponse();

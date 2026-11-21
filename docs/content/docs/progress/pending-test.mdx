@@ -5,6 +5,12 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- Organization npm package preparation: @cherryai/canvas-agent retains the upstream MIT notice and uses organization-scoped install/update commands. The authorized agent-only build passed and the package manifest was reviewed; the frontend was not built. Publishing is handed off through canvas-agent/README.md to a colleague with organization permissions; verify registry version, integrity, and installation after upload.
+- Standalone canvas control MCP: run this checkout's built `mcp --control`; confirm loopback-only HTTP and stdio start together without initializing built-in AI conversations, workspace, history, or Skills. Check production, local, and subpath site roots; reject other origins, invalid credentials, and protocol mismatches. This mode is not yet published to npm.
+- Control grants and isolation: explicitly authorize the current canvas before exposing its contents; read-only grants cannot edit, and editing cannot bypass generation consent through batches or autoRun. Focus changes must not retarget tools. Project navigation, reload, page close, disconnect, or MCP exit must invalidate the grant without transferring control to another page.
+- Control ordering and persistence: exercise create/read/edit/connect/delete/viewport operations, out-of-order snapshot reporting, and immediate reads after edits. Verify existing browser-local persistence after reload, image aspect ratios, and continued built-in Agent behavior without automatic built-in connection from control pages.
+- Control generation and failures: submission is separate from completion; status is limited to the granted canvas. Cancelled or expired queued requests must not execute later, uncertain writes must not retry automatically, and disconnect must not claim to cancel submitted generation. Check structured text-truncation markers and exclusion of image payloads, arbitrary metadata, and site configuration; screenshots and external-chat attachments are outside this version.
+
 The current release needs manual verification in these areas:
 
 - 生产构建启动：重新构建并发布后，打开 `https://image.gptch.cloud` 应能挂载首页和画布界面，浏览器控制台不应出现 `property-information/*` 模块解析错误；同时确认 Agent 消息中的 Markdown 渲染仍正常。

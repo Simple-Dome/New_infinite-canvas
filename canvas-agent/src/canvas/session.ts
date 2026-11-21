@@ -8,7 +8,8 @@ import type { ToolName } from "./schemas.js";
 import { compactCanvasState, compactNode, isToolName, nextCanvasX, parseToolInput } from "./tools.js";
 import type { CanvasSnapshot } from "./types.js";
 
-type PendingRequest = { clientId: string; resolve: (value: unknown) => void; reject: (error: Error) => void };
+export type CanvasControlTarget = { clientId: string; projectId: string; grantId: string; signal?: AbortSignal; validate: () => void; validateOps: (ops: unknown, state: CanvasSnapshot) => unknown[] };
+type PendingRequest = { clientId: string; target?: CanvasControlTarget; resolve: (value: unknown) => void; reject: (error: Error) => void };
 type TurnAttachment = { clientId: string; id: string; name: string; type: string; size: number; width: number; height: number; dataUrl: string };
 type ReplayEvent = { type: string; payload: Record<string, unknown> };
 export type CodexState = { busy: boolean; threadId: string; turnId: string };
@@ -266,7 +267,7 @@ export class CanvasSession {
     }
 
     /** 建立网页与 Canvas Agent 之间的 SSE 连接。 */
-    openEvents(url: URL, res: ServerResponse, activeThreadId = "") {
+    openEvents(url: URL, res: ServerResponse, activeThreadId = "", controlHello?: Record<string, unknown>) {
         const clientId = url.searchParams.get("clientId") || crypto.randomUUID();
         const statusOnly = url.searchParams.get("role") === "status";
         logger.info("SSE client connected", { clientId, statusOnly });
@@ -279,7 +280,7 @@ export class CanvasSession {
                 this.clientFocusOrder.set(clientId, ++this.focusSequence);
             }
         }
-        sendEvent(res, "hello", { ok: true, protocolVersion: AGENT_PROTOCOL_VERSION, clientId, workspace: { activeThreadId }, conversation: this.conversationStateSnapshot, codex: this.codexState, pendingApprovals: this.codexPendingApprovals });
+        sendEvent(res, "hello", controlHello || { ok: true, protocolVersion: AGENT_PROTOCOL_VERSION, clientId, workspace: { activeThreadId }, conversation: this.conversationStateSnapshot, codex: this.codexState, pendingApprovals: this.codexPendingApprovals });
         if (!statusOnly && activeThreadId && this.codexState.threadId === activeThreadId) this.codexReplayEvents.forEach((event) => sendEvent(res, event.type, event.payload));
         const timer = setInterval(() => sendEvent(res, "ping", { time: Date.now() }), 15000);
         res.on("close", () => {
@@ -292,7 +293,7 @@ export class CanvasSession {
             this.pending.forEach((item, requestId) => {
                 if (item.clientId !== clientId) return;
                 this.pending.delete(requestId);
-                item.reject(new Error("请求页面已断开"));
+                item.reject(new Error(item.target ? "请求页面已断开，已发送操作的结果未知；请重新授权并读取状态确认，不要自动重试" : "请求页面已断开"));
             });
             if (this.activeClientId === clientId) this.activeClientId = [...this.clients.keys()].sort((a, b) => (this.clientFocusOrder.get(b) || 0) - (this.clientFocusOrder.get(a) || 0))[0] || "";
         });
@@ -372,13 +373,48 @@ export class CanvasSession {
     }
 
     /** 接收网页返回的工具调用结果。 */
-    resolveResult(clientId: string, body: { requestId?: string; error?: string; result?: unknown }) {
+    resolveResult(clientId: string, body: { requestId?: string; error?: string; result?: unknown; projectId?: string; grantId?: string; snapshot?: CanvasSnapshot }) {
         const item = body.requestId ? this.pending.get(body.requestId) : null;
         if (!item || !body.requestId || item.clientId !== clientId) return false;
+        if (item.target) {
+            item.target.validate();
+            if (body.projectId !== item.target.projectId || body.grantId !== item.target.grantId) return false;
+            if (!body.error) {
+                if (body.snapshot?.projectId !== item.target.projectId) return false;
+                this.updateState(body.snapshot, clientId);
+            }
+        }
         this.pending.delete(body.requestId);
         logger.debug("Canvas tool result received", { clientId, requestId: body.requestId, error: body.error, result: body.result });
         body.error ? item.reject(new Error(body.error)) : item.resolve(body.result);
         return true;
+    }
+
+    /** 网页执行前核实请求尚未超时或取消。 */
+    isControlRequestPending(requestId: string, clientId: string, grantId: string) {
+        const request = this.pending.get(requestId);
+        return Boolean(request && request.clientId === clientId && request.target?.grantId === grantId);
+    }
+
+    /** 撤销控制连接并取消尚未完成的请求；不把目标转交给其他标签页。 */
+    disconnectClient(clientId: string) {
+        const client = this.clients.get(clientId);
+        this.clients.delete(clientId);
+        this.canvasStates.delete(clientId);
+        this.clientFocusOrder.delete(clientId);
+        if (this.activeClientId === clientId) this.activeClientId = "";
+        if (this.boundClientId === clientId) this.boundClientId = "";
+        this.pending.forEach((item, requestId) => {
+            if (item.clientId !== clientId) return;
+            this.pending.delete(requestId);
+            item.reject(new Error("控制已断开，已发送操作的结果未知；请确认画布状态，不要自动重试"));
+        });
+        client?.end();
+    }
+
+    /** 随控制 MCP 退出关闭浏览器连接，避免 SSE 阻止进程结束。 */
+    closeControlConnections() {
+        for (const clientId of this.clients.keys()) this.disconnectClient(clientId);
     }
 
     /** 向全部已连接网页广播事件。 */
@@ -437,8 +473,20 @@ export class CanvasSession {
     }
 
     /** 校验工具参数并将调用分派到当前目标网页。 */
-    async callTool(name: unknown, rawInput: unknown) {
+    async callTool(name: unknown, rawInput: unknown, target?: CanvasControlTarget) {
         if (!isToolName(name)) throw new Error(`未知工具：${String(name)}`);
+        if (target) {
+            target.validate();
+            const state = this.canvasStateForClient(target.clientId);
+            if (!state || state.projectId !== target.projectId) throw new Error("授权画布已切换或断开，请重新授权");
+            const input = parseToolInput(name, rawInput) as Record<string, unknown>;
+            if (["canvas_get_state", "canvas_get_selection", "canvas_export_snapshot", "generation_get_status"].includes(name)) {
+                return this.requestCanvasTool(name, input, target);
+            }
+            const request = buildCanvasToolRequest(name, input, state);
+            request.input.ops = target.validateOps(request.input.ops, state);
+            return this.requestCanvasTool(request.name, request.input, target);
+        }
         logger.info("MCP tool called", { name, input: rawInput, targetClientId: this.targetClientId });
         const input = parseToolInput(name, rawInput) as Record<string, unknown>;
         if (SITE_TOOLS.has(name)) {
@@ -486,20 +534,38 @@ export class CanvasSession {
     }
 
     /** 向目标网页发送工具请求并等待调用结果。 */
-    private async requestCanvasTool(name: ToolName, input: Record<string, unknown>) {
+    private async requestCanvasTool(name: ToolName, input: Record<string, unknown>, target?: CanvasControlTarget) {
+        target?.validate();
+        if (target?.signal?.aborted) throw new Error("控制请求已取消");
         const requestId = crypto.randomUUID();
-        const clientId = this.targetClientId;
+        const clientId = target?.clientId || this.targetClientId;
         const client = this.clients.get(clientId);
         if (!client) throw new Error("当前没有已连接画布");
-        sendEvent(client, "tool_call", { requestId, name, input });
         logger.debug("Canvas tool request sent", { requestId, name, input, clientId });
         return await new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 this.pending.delete(requestId);
+                target?.signal?.removeEventListener("abort", cancel);
                 logger.warn("Canvas tool request timed out", { requestId, name, clientId });
-                reject(new Error("画布操作超时"));
+                if (target) sendEvent(client, "tool_cancel", { requestId, grantId: target.grantId });
+                reject(new Error(target ? "画布操作超时，结果未知；请读取画布状态确认，不要自动重试写操作" : "画布操作超时"));
             }, 30000);
-            this.pending.set(requestId, { clientId, resolve: (value) => (clearTimeout(timer), resolve(value)), reject: (error) => (clearTimeout(timer), reject(error)) });
+            const cancel = () => {
+                this.pending.delete(requestId);
+                clearTimeout(timer);
+                sendEvent(client, "tool_cancel", { requestId, grantId: target?.grantId });
+                reject(new Error("控制请求已取消，已发送操作的结果未知；请读取状态确认，不要自动重试"));
+            };
+            const cleanup = () => { clearTimeout(timer); target?.signal?.removeEventListener("abort", cancel); };
+            this.pending.set(requestId, { clientId, target, resolve: (value) => (cleanup(), resolve(value)), reject: (error) => (cleanup(), reject(error)) });
+            target?.signal?.addEventListener("abort", cancel, { once: true });
+            try {
+                sendEvent(client, "tool_call", { requestId, name, input, ...(target ? { projectId: target.projectId, grantId: target.grantId } : {}) });
+            } catch (error) {
+                this.pending.delete(requestId);
+                cleanup();
+                reject(error);
+            }
         });
     }
 }

@@ -15,6 +15,8 @@
 
 ## Development and Data
 
+- [Standalone Canvas Control MCP](../canvas-agent/README.md#独立画布控制-mcp): local stdio entry, website root, authorization, tool boundaries, and release prerequisites.
+
 - [Local Development](/docs/development/local-development)
 - [Canvas Data Structure](/docs/development/canvas-data-structure)
 - [How the Local Codex Connection Works](/docs/development/local-codex-canvas)
