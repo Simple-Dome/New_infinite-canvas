@@ -5,9 +5,11 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- Runtime branding: mount the server’s `runtime-config` directory read-only at `/etc/infinite-canvas` and edit `config.js` there; refreshing a page should update the navbar, homepage heading, browser title, and favicon without rebuilding or restarting. Local Compose includes this mount; see `runtime-config/README.md`. Verify `APP_NAME`, empty/custom `APP_LOGO`, empty/localized/custom `HOME_TITLE`, quoted/Chinese/Emoji values, and saving by replacing the file. Runtime values take precedence over the existing Vite build defaults; an empty homepage title uses “无限画布” / “Infinite Canvas”. The mounted file also owns analytics IDs; without a mount, the original analytics environment-variable flow remains. Verify root and `/canvas/` configuration responses are uncached and readable, both themes and mobile/desktop views. Nine focused behavior checks passed for runtime precedence, localized titles, empty-logo handling, mounted-file preservation and replacement, and unmounted analytics output; these used temporary paths and do not establish real-container or browser acceptance. First deployment of this supporting version is required; production and browser acceptance remain pending.
+
 - 渠道接口地址恢复为纯手动输入：移除三站域名下拉选项，不展示域名候选或占位提示；未设置固定 API 的统一入口中，初始配置和新建渠道地址均为空，切换协议或清空输入后不会自动填入白名单第一项。保存和请求发送前仍校验允许的 HTTPS origin；已有渠道按保存的地址显示，来源站点显式传入的 `baseUrl` 继续按原逻辑导入。源码已修正，尚未重新构建部署；未运行测试，待人工验收输入、默认值、协议切换及非白名单拒绝。
 
-- 站点品牌环境变量：`VITE_APP_NAME` 配置名称（默认 `cherryAI`），`VITE_APP_LOGO` 配置 Emoji 标识（默认 `🍒`，留空隐藏），统一生成顶部导航、首页主标题、HTML 初始标题、浏览器标题和页签 SVG 图标；中英文使用同一品牌。开发时参考 `web/.env.example` 写入 `web/.env.local`；Docker 通过同名 `--build-arg` 或本机构建 Compose 的构建参数传入。配置在 Vite 构建时生效，修改后需要重新构建镜像，容器运行期变量不会改变已生成的品牌。已整理为独立发布候选，生产尚未更新；待验收默认值、自定义名称/Emoji、空标识、中英文、浅深主题及桌面/手机显示。
+- 站点品牌环境变量：`VITE_APP_NAME` 配置名称（默认 `cherryAI`），`VITE_APP_LOGO` 配置 Emoji 标识（默认 `🍒`，留空隐藏），统一生成顶部导航、HTML 初始标题、浏览器标题和页签 SVG 图标；中英文使用同一品牌。开发时参考 `web/.env.example` 写入 `web/.env.local`；Docker 通过同名 `--build-arg` 或本机构建 Compose 的构建参数传入。这些变量仍提供构建默认值；新增的挂载式运行时覆盖见上方条目。已整理为独立发布候选，生产尚未更新；待验收默认值、自定义名称/Emoji、空标识、中英文、浅深主题及桌面/手机显示。
 
 - Cherry 统一入口联动：从 `gptch.cloud`、`artworkers.online`、`tovyn.xyz` 的「image 生图」进入 `image.cherryai.cc` 时，用 URL 的 `baseUrl` 指定来源 API 域名；匹配已有渠道或新建空 Key 渠道，并激活对应的图像、视频、文本、音频默认模型，不覆盖其他站点的 Key。导入后清理地址参数；非法域名或只有 Key 时保持配置不变并提示“请输入对应的域名”。Cherry 默认/经典主题均已接入；统一域名尚未生产部署。
 

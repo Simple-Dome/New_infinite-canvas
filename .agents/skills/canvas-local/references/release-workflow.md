@@ -90,7 +90,7 @@ docker run --detach --name "$SMOKE_CONTAINER" --platform linux/amd64 \
 SMOKE_PORT=$(docker port "$SMOKE_CONTAINER" 3000/tcp | sed -E 's/.*:([0-9]+)$/\1/')
 ```
 
-等待 Nginx 启动后，按 profile 的公共路径检查入口、图片/配置页、`config.js` 和一个真实画布深层路由。旧 `/canvas/` profile 对应 `/canvas/`、`/canvas/image`、`/canvas/config`、`/canvas/config.js` 和 `/canvas/canvas/<id>`。解析 HTML 中引用的每个 JS/CSS 地址，逐个检查可下载、Content-Type 正确、正文不是 `index.html`；插件清单 URL 必须匹配所选 base，`config.js` 只包含允许的统计字段。用隔离浏览器上下文检查 React 实际挂载和无模块解析错误，不修改用户已打开的浏览器窗口或存储。完成后无论成功失败都删除临时容器。
+等待 Nginx 启动后，按 profile 的公共路径检查入口、图片/配置页、`config.js` 和一个真实画布深层路由。旧 `/canvas/` profile 对应 `/canvas/`、`/canvas/image`、`/canvas/config`、`/canvas/config.js` 和 `/canvas/canvas/<id>`。解析 HTML 中引用的每个 JS/CSS 地址，逐个检查可下载、Content-Type 正确、正文不是 `index.html`；插件清单 URL 必须匹配所选 base，`config.js` 只包含公开品牌字段 `APP_NAME`、`APP_LOGO`、`HOME_TITLE` 和允许的统计字段；挂载测试用配置目录到 `/etc/infinite-canvas`，编辑并替换其中 `config.js` 后无需重启即可读到新内容。用隔离浏览器上下文检查 React 实际挂载和无模块解析错误，不修改用户已打开的浏览器窗口或存储。完成后无论成功失败都删除临时容器。
 
 用隔离浏览器上下文验证 profile 确定的 API 策略；旧固定 API profile 要求渠道地址不可编辑、旧配置/配置文件/URL 参数不能覆盖固定 API，并拦截模型列表请求确认实际 origin。对于 `image.gptch.cloud`，页面 Host 是 `image.gptch.cloud`，模型请求 origin 必须仍是 `gptch.cloud`。统一入口按其确定后的策略验收，不自动继承旧站的固定地址。发现错误 API origin 或文档地址时停止该站点，不复用其镜像给其他站点。
 

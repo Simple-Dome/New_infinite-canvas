@@ -33,7 +33,7 @@ description: 为 New_infinite-canvas 默认从 origin/main 最新提交准备本
 - 当前前端从 `VITE_FIXED_API_BASE_URL` 读取模型接口地址，从 `VITE_DOCS_URL` 读取文档地址；公开发布域名和 API 上游是两个独立字段。比如 `image.gptch.cloud` 的公开页面可以固定请求 `https://gptch.cloud`，不能把公开域名自动当成 API 地址。
 - `image.gptch.cloud` 的标准 profile 是：`PUBLIC_DOMAIN=image.gptch.cloud`、`VITE_BASE=/canvas/`、`VITE_FIXED_API_BASE_URL=https://gptch.cloud`。发布到该域名时，页面 Host 和模型请求 origin 必须分别保持这两个值。
 - 旧站点 profile 的 Vite 产物使用 `/canvas/` base path；统一入口的路径以新 profile 为准。HTML、运行期 `config.js`、Logo、本地插件清单、React Router basename 和 Nginx location 必须一起匹配，不能只改构建参数就假定根路径已支持。
-- 当前 `config.js` 只承载统计 ID，不承载 API Key、文档地址或上传凭据。禁止把真实 Key、生产 env 或存储凭据注入烟测容器或写入发布证据。
+- 当前 `config.js` 承载公开品牌字段 `APP_NAME`、`APP_LOGO`、`HOME_TITLE` 和统计 ID，不承载 API Key、文档地址或上传凭据。需要在线修改品牌时，两色容器只读挂载同一个服务器配置目录到 `/etc/infinite-canvas`；首次部署参考仓库 `runtime-config/`，后续发布保留服务器现有配置，不用样例覆盖。禁止把真实 Key、生产 env 或存储凭据注入烟测容器或写入发布证据。
 
 如果用户要求的站点、公共路径或 API 地址不符合上述契约，先报告阻断原因；不要通过改 tag、运行期 env 或 Nginx 猜测来绕过。每个站点必须分别构建、分别记录和分别验收，不能只改 tag 冒充另一站点镜像。
 

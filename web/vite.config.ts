@@ -34,7 +34,6 @@ function appBranding(): Plugin {
             );
             brandingHtml = renderToStaticMarkup(createElement("title", null, title))
                 + renderToStaticMarkup(createElement("link", { rel: "icon", type: "image/svg+xml", href: `data:image/svg+xml,${encodeURIComponent(svg)}` }));
-            return { define: { __APP_TITLE__: JSON.stringify(title) } };
         },
         transformIndexHtml(html) {
             return html.replace("<!--app-branding-->", () => brandingHtml);

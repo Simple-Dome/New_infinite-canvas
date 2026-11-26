@@ -1,4 +1,4 @@
-import { APP_TITLE } from "@/constant/env";
+import { APP_TITLE, HOME_TITLE } from "@/constant/env";
 
 export default {
     imageSave: {
@@ -363,6 +363,7 @@ export default {
         darkTheme: "Switch to dark theme",
     },
     home: {
+        title: HOME_TITLE || "Infinite Canvas",
         promptError: "Failed to load prompts",
         description: "Generate, connect, and reshape <content>images, text, and graphics</content> in <canvas>Infinite Canvas</canvas>, turning one-off generations into a continuous creative process.",
         start: "Get started",

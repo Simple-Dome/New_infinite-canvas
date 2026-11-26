@@ -2,8 +2,14 @@
 set -e
 
 # Executed automatically by the official nginx image entrypoint through /docker-entrypoint.d/*.sh before nginx starts.
-# Generate runtime config.js from environment variables. Each analytics provider has an independent variable;
-# unset providers remain disabled, load no scripts, and send no external requests. Multiple providers may be enabled together.
+# A mounted config directory can be edited on the server; page refreshes read its current file.
+CONFIG_PATH=/usr/share/nginx/html/config.js
+if [ -f /etc/infinite-canvas/config.js ]; then
+    ln -sf /etc/infinite-canvas/config.js "$CONFIG_PATH"
+    exit 0
+fi
+
+# Otherwise generate analytics configuration from container environment variables.
 
 # GA4 and Baidu IDs contain only letters, numbers, and hyphens. Remove other characters
 # so quotes and similar values cannot break the JavaScript strings in config.js as a defense-in-depth measure.
@@ -14,9 +20,10 @@ sanitize_id() {
 GA4_ID=$(sanitize_id "${ANALYTICS_GA4_ID:-}")
 BAIDU_ID=$(sanitize_id "${ANALYTICS_BAIDU_ID:-}")
 
-cat > /usr/share/nginx/html/config.js <<EOF
+cat > "$CONFIG_PATH" <<EOF
 window.__RUNTIME_CONFIG__ = {
   ANALYTICS_GA4_ID: "${GA4_ID}",
   ANALYTICS_BAIDU_ID: "${BAIDU_ID}"
 };
 EOF
+chmod 644 "$CONFIG_PATH"
